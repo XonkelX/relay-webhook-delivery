@@ -1,0 +1,17 @@
+{
+  "scheduler": {
+    "intervalMinutes": 1,
+    "maxClaimsPerTick": 25,
+    "maxClaimsPerDay": 50000
+  },
+  "delivery": {
+    "maxAttempts": 8,
+    "requestTimeoutMs": 10000,
+    "maxPayloadBytes": 262144,
+    "maxResponseCaptureBytes": 16384
+  },
+  "retention": {
+    "eventDays": 30,
+    "attemptDays": 30
+  }
+}

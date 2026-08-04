@@ -2,10 +2,10 @@ import { Hono } from 'hono'
 
 const app = new Hono()
 
-app.get('/api/health', (c) =>
+app.get('/health', (c) =>
   c.json({
     status: 'ok',
-    service: 'relay-console',
+    service: 'relay-lab',
   }),
 )
 
