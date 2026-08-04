@@ -21,6 +21,8 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "prettier": "^3.9.6"
+    "@cloudflare/vitest-pool-workers": "^0.20.1",
+    "prettier": "^3.9.6",
+    "vitest": "^4.1.10"
   }
 }
