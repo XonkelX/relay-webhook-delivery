@@ -1,0 +1,21 @@
+{
+  "name": "relay-webhook-delivery",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A reliable outbound webhook delivery platform.",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "license": "MIT"
+}

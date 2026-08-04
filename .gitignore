@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Production output
+dist/
+build/
+
+# Cloudflare local state
+.wrangler/
+.dev.vars
+.dev.vars.*
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Tests and coverage
+coverage/
+playwright-report/
+test-results/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Local editor state
+.vscode/
+.cursor/
