@@ -13,8 +13,10 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "hono": "^4.13.0",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.50.0",
