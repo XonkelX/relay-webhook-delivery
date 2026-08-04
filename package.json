@@ -17,11 +17,13 @@
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "format": "prettier . --write",
-    "format-check": "prettier . --check"
+    "format-check": "prettier . --check",
+    "test:e2e": "playwright test"
   },
   "license": "MIT",
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.20.1",
+    "@playwright/test": "^1.62.1",
     "prettier": "^3.9.6",
     "vitest": "^4.1.10"
   }
