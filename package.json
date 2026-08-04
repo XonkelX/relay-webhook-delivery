@@ -18,7 +18,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "format": "prettier . --write",
     "format-check": "prettier . --check",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "check:cost": "node scripts/check-cost-guardrails.mjs"
   },
   "license": "MIT",
   "devDependencies": {
