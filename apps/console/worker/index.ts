@@ -1,14 +1,17 @@
 import { Hono } from 'hono'
+import { requireApiKey, type RelayWorkerEnvironment } from './middleware/require-api-key.js'
 
-const app = new Hono()
+const app = new Hono<RelayWorkerEnvironment>()
 
-app.get('/api/health', (c) =>
-  c.json({
+app.get('/api/health', (context) =>
+  context.json({
     status: 'ok',
     service: 'relay-console',
   }),
 )
 
-app.notFound((c) => c.json({ error: 'Not found' }, 404))
+app.use('/v1/*', requireApiKey)
+
+app.notFound((context) => context.json({ error: 'Not found' }, 404))
 
 export default app
