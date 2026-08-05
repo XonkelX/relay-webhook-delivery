@@ -66,6 +66,12 @@ class FakeStatement implements RelayStatement {
       }
     }
 
+    if (this.query.includes('FROM delivery_outbox')) {
+      return {
+        results: [],
+      }
+    }
+
     throw new Error(`Unexpected all query: ${this.query}`)
   }
 
@@ -146,6 +152,9 @@ function postEvent(
     },
     {
       DB: database,
+      DELIVERY_QUEUE: {
+        send: vi.fn().mockResolvedValue(undefined),
+      },
     },
   )
 }

@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { ingestEvent } from '../lib/ingest-event.js'
 import { parseIngestRequest } from '../lib/ingest-request.js'
+import { publishEventOutbox } from '../lib/outbox-publisher.js'
 import type { RelayWorkerEnvironment } from '../middleware/require-api-key.js'
 
 export const eventsRoute = new Hono<RelayWorkerEnvironment>()
@@ -33,6 +34,19 @@ eventsRoute.post('/', async (context) => {
         },
         409,
       )
+    }
+
+    const publication = await publishEventOutbox(
+      context.env.DB,
+      context.env.DELIVERY_QUEUE,
+      result.value.eventId,
+    )
+
+    if (publication.failed > 0) {
+      console.warn('Delivery outbox publication deferred', {
+        eventId: result.value.eventId,
+        failed: publication.failed,
+      })
     }
 
     return context.json(

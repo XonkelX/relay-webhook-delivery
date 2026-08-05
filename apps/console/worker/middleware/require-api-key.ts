@@ -1,10 +1,12 @@
 import { createMiddleware } from 'hono/factory'
 import { authenticateApiKey, type AuthenticatedApiKey } from '../lib/api-key-auth.js'
 import type { RelayDatabase } from '../lib/database.js'
+import type { DeliveryQueueProducer } from '../lib/outbox-publisher.js'
 
 export interface RelayWorkerEnvironment {
   Bindings: {
     DB: RelayDatabase
+    DELIVERY_QUEUE: DeliveryQueueProducer
   }
   Variables: {
     apiKey: AuthenticatedApiKey
