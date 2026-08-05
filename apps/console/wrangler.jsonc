@@ -23,6 +23,17 @@
       "migrations_dir": "../../migrations",
     },
   ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "DELIVERY_QUEUE",
+        "queue": "relay-deliveries",
+      },
+    ],
+  },
+  "triggers": {
+    "crons": ["* * * * *"],
+  },
   "compatibility_flags": ["nodejs_compat"],
   /**
    * Smart Placement

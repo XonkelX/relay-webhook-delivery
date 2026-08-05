@@ -23,7 +23,7 @@ function attempt(
 export const eventFixtures: EventFixture[] = [
   {
     id: 'evt_01J4M8Y7Z5V8W7R2XK1A9C3P0Q',
-    deliveryId: 'del_01J4M8Z2M6A1S7H4N8T0K5F9CD',
+    deliveryId: 'dlv_01J4M8Z2M6A1S7H4N8T0K5F9CD',
     webhookId: 'wh_01J4M7R8Q2D6N3V9B5X1A0K4TS',
     eventType: 'order.completed',
     endpointName: 'Production Orders',
@@ -37,7 +37,7 @@ export const eventFixtures: EventFixture[] = [
   },
   {
     id: 'evt_01J4M91QX3F7D8A2S6N5K0V4BC',
-    deliveryId: 'del_01J4M92JH8T1C6P3R5V9N0A7QD',
+    deliveryId: 'dlv_01J4M92JH8T1C6P3R5V9N0A7QD',
     webhookId: 'wh_01J4M7R8Q2D6N3V9B5X1A0K4TS',
     eventType: 'invoice.payment_failed',
     endpointName: 'Billing Platform',
@@ -69,7 +69,7 @@ export const eventFixtures: EventFixture[] = [
   },
   {
     id: 'evt_01J4M94V7D2K9A5S1N8F0Q6XCP',
-    deliveryId: 'del_01J4M95C3R8V1N6T0A4K7D2QFS',
+    deliveryId: 'dlv_01J4M95C3R8V1N6T0A4K7D2QFS',
     webhookId: 'wh_01J4M7T9A4C2P8N6D1V5Q0S3XR',
     eventType: 'customer.deleted',
     endpointName: 'Legacy CRM',
@@ -86,7 +86,7 @@ export const eventFixtures: EventFixture[] = [
   },
   {
     id: 'evt_01J4M96N4A7D2S8F5K1V0Q9XRC',
-    deliveryId: 'del_01J4M97B6N3T8C1A5D0Q4V2KFS',
+    deliveryId: 'dlv_01J4M97B6N3T8C1A5D0Q4V2KFS',
     webhookId: 'wh_01J4M7T9A4C2P8N6D1V5Q0S3XR',
     eventType: 'customer.deleted',
     endpointName: 'Legacy CRM',
