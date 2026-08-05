@@ -9,17 +9,17 @@ interface ApiKeyRow {
   status: 'active' | 'revoked'
 }
 
-interface BoundStatement {
+interface ApiKeyBoundStatement {
   first<T>(): Promise<T | null>
   run(): Promise<unknown>
 }
 
-interface PreparedStatement {
-  bind(...values: unknown[]): BoundStatement
+interface ApiKeyPreparedStatement {
+  bind(...values: unknown[]): ApiKeyBoundStatement
 }
 
 export interface ApiKeyDatabase {
-  prepare(query: string): PreparedStatement
+  prepare(query: string): ApiKeyPreparedStatement
 }
 
 export interface AuthenticatedApiKey {

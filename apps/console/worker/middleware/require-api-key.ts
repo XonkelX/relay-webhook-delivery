@@ -1,13 +1,10 @@
 import { createMiddleware } from 'hono/factory'
-import {
-  authenticateApiKey,
-  type ApiKeyDatabase,
-  type AuthenticatedApiKey,
-} from '../lib/api-key-auth.js'
+import { authenticateApiKey, type AuthenticatedApiKey } from '../lib/api-key-auth.js'
+import type { RelayDatabase } from '../lib/database.js'
 
 export interface RelayWorkerEnvironment {
   Bindings: {
-    DB: ApiKeyDatabase
+    DB: RelayDatabase
   }
   Variables: {
     apiKey: AuthenticatedApiKey
