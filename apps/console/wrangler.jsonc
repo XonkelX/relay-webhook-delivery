@@ -31,6 +31,9 @@
       },
     ],
   },
+  "triggers": {
+    "crons": ["* * * * *"],
+  },
   "compatibility_flags": ["nodejs_compat"],
   /**
    * Smart Placement
