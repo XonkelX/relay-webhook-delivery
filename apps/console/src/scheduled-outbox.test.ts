@@ -31,7 +31,9 @@ class EmptyDatabase implements RelayDatabase {
     return new EmptyStatement()
   }
 
-  async batch(_statements: RelayStatement[]): Promise<unknown[]> {
+  async batch(statements: RelayStatement[]): Promise<unknown[]> {
+    void statements
+    void statements
     return []
   }
 }
