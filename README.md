@@ -4,9 +4,11 @@ Relay is a reliable outbound webhook delivery platform built on Cloudflare Worke
 
 ## Project Status
 
-Relay is currently in Phase 0: repository framing, architecture decisions, local infrastructure, testing, and quality gates.
+Relay has completed Phase 2: durable ingestion and data foundations.
 
-Production webhook delivery is not implemented yet.
+The authenticated `POST /v1/events` path now validates and persists events, enforces idempotency, creates delivery fanout atomically, records usage and audit evidence, publishes delivery messages through a durable outbox, and recovers pending outbox rows on a schedule.
+
+The Phase 3 asynchronous delivery consumer, webhook signing, HTTP execution, retry scheduling, and attempt processing are not implemented yet.
 
 ## Delivery Guarantee
 
@@ -48,7 +50,7 @@ Relay provides at-least-once delivery. An event may be delivered more than once,
 
 ## Environment Variables
 
-Phase 0 does not require runtime environment variables.
+Relay currently uses Cloudflare D1 and Queue bindings configured through `wrangler.jsonc`. It does not require plaintext runtime environment variables for local Phase 2 operation.
 
 Document non-secret examples in `.env.example`. Store local Worker secrets in an ignored `.dev.vars` file. Never commit credentials, tokens, signing secrets, or production identifiers.
 
