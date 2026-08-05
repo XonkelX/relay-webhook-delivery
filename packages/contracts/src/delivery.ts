@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { DeliveryIdSchema } from './ids'
+import { DeliveryIdSchema } from './ids.js'
 
 export const DeliveryStatusSchema = z.enum([
   'queued',

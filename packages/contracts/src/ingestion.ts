@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { EventIdSchema } from './ids'
+import { EventIdSchema } from './ids.js'
 
 export const MAX_EVENT_PAYLOAD_BYTES = 256 * 1024
 export const MAX_IDEMPOTENCY_KEY_LENGTH = 200
