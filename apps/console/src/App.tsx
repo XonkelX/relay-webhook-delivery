@@ -1,127 +1,86 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import cloudflareLogo from './assets/cloudflare.svg'
-import heroImg from './assets/hero.png'
+import { Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams } from 'react-router'
+import { AppShell, type ConsolePage } from './components/AppShell'
+import { eventFixtures } from './data/events'
+import type { EventFixture } from './data/types'
+import { DeliveryInspectorPage } from './pages/DeliveryInspectorPage'
+import { EndpointsPage } from './pages/EndpointsPage'
+import { EventStreamPage } from './pages/EventStreamPage'
+import { FailureLabPage } from './pages/FailureLabPage'
+import { LandingPage } from './pages/LandingPage'
+import { OverviewPage } from './pages/OverviewPage'
+import { SystemHealthPage } from './pages/SystemHealthPage'
 import './App.css'
 
-function App() {
-  const [count, setCount] = useState(0)
-  const [name, setName] = useState('unknown')
+const pathsByPage: Record<ConsolePage, string> = {
+  overview: '/console',
+  events: '/console/events',
+  endpoints: '/console/endpoints',
+  'failure-lab': '/console/failure-lab',
+  health: '/console/health',
+}
+
+function getActivePage(pathname: string): ConsolePage {
+  if (pathname.startsWith('/console/events')) return 'events'
+  if (pathname.startsWith('/console/endpoints')) return 'endpoints'
+  if (pathname.startsWith('/console/failure-lab')) return 'failure-lab'
+  if (pathname.startsWith('/console/health')) return 'health'
+
+  return 'overview'
+}
+
+function ConsoleLayout() {
+  const location = useLocation()
+  const navigate = useNavigate()
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started with Cloudflare</h1>
-          <p>
-            Edit <code>src/App.tsx</code> or <code>worker/index.ts</code> and save to test{' '}
-            <code>HMR</code>
-          </p>
-        </div>
-        <ul style={{ display: 'flex', gap: '1rem', listStyle: 'none', padding: 0 }}>
-          <li>
-            <button className="counter" onClick={() => setCount((count) => count + 1)}>
-              Count is {count}
-            </button>
-          </li>
-          <li>
-            <button
-              className="counter"
-              onClick={() => {
-                fetch('/api/')
-                  .then((res) => res.json())
-                  .then((data) => setName(data.name))
-              }}
-              aria-label="get name"
-            >
-              Name from API is: {name}
-            </button>
-          </li>
-        </ul>
-      </section>
+    <AppShell
+      activePage={getActivePage(location.pathname)}
+      onNavigate={(page) => navigate(pathsByPage[page])}
+    >
+      <Outlet />
+    </AppShell>
+  )
+}
 
-      <div className="ticks"></div>
+function EventStreamRoute() {
+  const navigate = useNavigate()
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-            <li>
-              <a href="https://workers.cloudflare.com/" target="_blank">
-                <img className="button-icon" src={cloudflareLogo} alt="" />
-                Workers Docs
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg className="button-icon" role="presentation" aria-hidden="true">
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg className="button-icon" role="presentation" aria-hidden="true">
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg className="button-icon" role="presentation" aria-hidden="true">
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg className="button-icon" role="presentation" aria-hidden="true">
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+  function inspectEvent(event: EventFixture) {
+    navigate(`/console/events/${event.id}`)
+  }
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+  return <EventStreamPage onSelectEvent={inspectEvent} />
+}
+
+function DeliveryInspectorRoute() {
+  const navigate = useNavigate()
+  const { eventId } = useParams()
+
+  const event = eventFixtures.find((fixture) => fixture.id === eventId)
+
+  if (!event) {
+    return <Navigate to="/console/events" replace />
+  }
+
+  return <DeliveryInspectorPage event={event} onBack={() => navigate('/console/events')} />
+}
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+
+      <Route path="/console" element={<ConsoleLayout />}>
+        <Route index element={<OverviewPage />} />
+        <Route path="events" element={<EventStreamRoute />} />
+        <Route path="events/:eventId" element={<DeliveryInspectorRoute />} />
+        <Route path="endpoints" element={<EndpointsPage />} />
+        <Route path="failure-lab" element={<FailureLabPage />} />
+        <Route path="health" element={<SystemHealthPage />} />
+      </Route>
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   )
 }
 
