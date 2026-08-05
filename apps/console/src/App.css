@@ -1502,3 +1502,31 @@
     transition-duration: 0.01ms !important;
   }
 }
+.inspector-grid,
+.detail-panel,
+.attempt-panel,
+.detail-list,
+.attempt-list,
+.attempt-item,
+.attempt-item__content {
+  min-width: 0;
+}
+
+.detail-list dd,
+.detail-list code,
+.attempt-error {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+@media (max-width: 600px) {
+  .attempt-facts {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .attempt-facts span {
+    min-width: 0;
+  }
+}
