@@ -187,7 +187,12 @@ describe('POST /v1/events', () => {
     })
 
     const response = await postEvent(database)
-    const body = await response.json()
+    const body = (await response.json()) as {
+      eventId: string
+      status: string
+      duplicate: boolean
+      deliveryCount: number
+    }
 
     expect(response.status).toBe(202)
     expect(body).toMatchObject({
