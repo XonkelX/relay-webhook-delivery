@@ -20,29 +20,16 @@ export interface PublishOutboxResult {
   failed: number
 }
 
-export async function publishEventOutbox(
+async function publishRows(
   database: RelayDatabase,
   queue: DeliveryQueueProducer,
-  eventId: string,
-  publishedAt = new Date().toISOString(),
+  rows: readonly PendingOutboxRow[],
+  publishedAt: string,
 ): Promise<PublishOutboxResult> {
-  const pending = await database
-    .prepare(
-      `SELECT delivery_outbox.id, delivery_outbox.delivery_id
-       FROM delivery_outbox
-       INNER JOIN deliveries
-         ON deliveries.id = delivery_outbox.delivery_id
-       WHERE deliveries.event_id = ?
-         AND delivery_outbox.published_at IS NULL
-       ORDER BY delivery_outbox.created_at, delivery_outbox.id`,
-    )
-    .bind(eventId)
-    .all<PendingOutboxRow>()
-
   let published = 0
   let failed = 0
 
-  for (const row of pending.results) {
+  for (const row of rows) {
     try {
       await queue.send(
         {
@@ -90,4 +77,51 @@ export async function publishEventOutbox(
     published,
     failed,
   }
+}
+
+export async function publishEventOutbox(
+  database: RelayDatabase,
+  queue: DeliveryQueueProducer,
+  eventId: string,
+  publishedAt = new Date().toISOString(),
+): Promise<PublishOutboxResult> {
+  const pending = await database
+    .prepare(
+      `SELECT delivery_outbox.id, delivery_outbox.delivery_id
+       FROM delivery_outbox
+       INNER JOIN deliveries
+         ON deliveries.id = delivery_outbox.delivery_id
+       WHERE deliveries.event_id = ?
+         AND delivery_outbox.published_at IS NULL
+       ORDER BY delivery_outbox.created_at, delivery_outbox.id`,
+    )
+    .bind(eventId)
+    .all<PendingOutboxRow>()
+
+  return publishRows(database, queue, pending.results, publishedAt)
+}
+
+export async function publishPendingOutbox(
+  database: RelayDatabase,
+  queue: DeliveryQueueProducer,
+  limit = 100,
+  publishedAt = new Date().toISOString(),
+): Promise<PublishOutboxResult> {
+  if (!Number.isInteger(limit) || limit < 1 || limit > 1000) {
+    throw new TypeError('Outbox publication limit must be an integer between 1 and 1000.')
+  }
+
+  const pending = await database
+    .prepare(
+      `SELECT id, delivery_id
+       FROM delivery_outbox
+       WHERE published_at IS NULL
+         AND available_at <= ?
+       ORDER BY available_at, created_at, id
+       LIMIT ?`,
+    )
+    .bind(publishedAt, limit)
+    .all<PendingOutboxRow>()
+
+  return publishRows(database, queue, pending.results, publishedAt)
 }
