@@ -31,3 +31,5 @@ Thumbs.db
 # Local editor state
 .vscode/
 .cursor/
+
+.tmp/
