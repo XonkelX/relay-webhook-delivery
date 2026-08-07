@@ -194,3 +194,15 @@ export type EndpointListResponse = z.infer<typeof EndpointListResponseSchema>
 export type OverviewResponse = z.infer<typeof OverviewResponseSchema>
 export type SystemHealthResponse = z.infer<typeof SystemHealthResponseSchema>
 export type ReplayDeliveryAccepted = z.infer<typeof ReplayDeliveryAcceptedSchema>
+
+export const OwnerSessionBootstrapRequestSchema = z.strictObject({
+  token: z.string().min(1).max(512),
+})
+
+export const OwnerSessionBootstrapResponseSchema = z.strictObject({
+  status: z.literal('authenticated'),
+  expiresAt: TimestampSchema,
+})
+
+export type OwnerSessionBootstrapRequest = z.infer<typeof OwnerSessionBootstrapRequestSchema>
+export type OwnerSessionBootstrapResponse = z.infer<typeof OwnerSessionBootstrapResponseSchema>

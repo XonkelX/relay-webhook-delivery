@@ -1,4 +1,8 @@
-import { DeliveryIdSchema, EventIdSchema } from '@relay/contracts'
+import {
+  DeliveryIdSchema,
+  EventIdSchema,
+  OwnerSessionBootstrapRequestSchema,
+} from '@relay/contracts'
 import { Hono } from 'hono'
 import { listOwnerEvents, parseOwnerEventListQuery } from '../lib/owner-events.js'
 import { loadOwnerEventDetail } from '../lib/owner-event-detail.js'
@@ -7,13 +11,114 @@ import { loadOwnerSystemHealth } from '../lib/owner-health.js'
 import { loadOwnerOverview } from '../lib/owner-overview.js'
 import { publishDeliveryOutbox } from '../lib/outbox-publisher.js'
 import { replayDelivery } from '../lib/replay-delivery.js'
-import { buildExpiredOwnerCookies } from '../lib/owner-session-http.js'
-import { revokeOwnerSession } from '../lib/owner-session.js'
+import {
+  buildExpiredOwnerCookies,
+  buildOwnerCsrfCookie,
+  buildOwnerSessionCookie,
+  createOwnerCsrfToken,
+  createSignedOwnerSessionCookieValue,
+} from '../lib/owner-session-http.js'
+import { createOwnerSession, revokeOwnerSession } from '../lib/owner-session.js'
+import { verifyOwnerBootstrapToken } from '../lib/owner-bootstrap.js'
 import { requireOwnerSession } from '../middleware/require-owner-session.js'
 import type { RelayWorkerEnvironment } from '../middleware/require-api-key.js'
 
 export const ownerRoute = new Hono<RelayWorkerEnvironment>()
 
+ownerRoute.post('/session', async (context) => {
+  const bootstrapToken = context.env.OWNER_BOOTSTRAP_TOKEN
+  const signingKey = context.env.OWNER_SESSION_SIGNING_KEY
+
+  if (!bootstrapToken || !signingKey) {
+    console.error('Owner bootstrap authentication is not configured.')
+
+    return context.json(
+      {
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Owner authentication is unavailable.',
+        },
+      },
+      500,
+    )
+  }
+
+  let request: unknown
+
+  try {
+    request = await context.req.json()
+  } catch {
+    request = null
+  }
+
+  const parsed = OwnerSessionBootstrapRequestSchema.safeParse(request)
+
+  if (!parsed.success) {
+    return context.json(
+      {
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'The owner credentials are invalid.',
+        },
+      },
+      401,
+    )
+  }
+
+  let authenticated: boolean
+
+  try {
+    authenticated = await verifyOwnerBootstrapToken(parsed.data.token, bootstrapToken)
+  } catch (error) {
+    console.error('Owner bootstrap configuration is invalid.', error)
+
+    return context.json(
+      {
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Owner authentication is unavailable.',
+        },
+      },
+      500,
+    )
+  }
+
+  if (!authenticated) {
+    return context.json(
+      {
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'The owner credentials are invalid.',
+        },
+      },
+      401,
+    )
+  }
+
+  const session = await createOwnerSession(context.env.DB)
+
+  const signedCookie = await createSignedOwnerSessionCookieValue(session.rawToken, signingKey)
+
+  const csrf = await createOwnerCsrfToken(session.rawToken, signingKey)
+
+  const maxAgeSeconds = Math.floor(
+    (Date.parse(session.expiresAt) - Date.parse(session.createdAt)) / 1000,
+  )
+
+  context.header('Set-Cookie', buildOwnerSessionCookie(signedCookie, maxAgeSeconds), {
+    append: true,
+  })
+
+  context.header('Set-Cookie', buildOwnerCsrfCookie(csrf, maxAgeSeconds), { append: true })
+
+  return context.json(
+    {
+      status: 'authenticated',
+      expiresAt: session.expiresAt,
+    },
+    201,
+  )
+})
 ownerRoute.use('*', requireOwnerSession)
 
 ownerRoute.get('/events', async (context) => {
