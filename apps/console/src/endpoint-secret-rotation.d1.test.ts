@@ -2,7 +2,6 @@ import { env } from 'cloudflare:workers'
 import { describe, expect, it } from 'vitest'
 import { createEndpoint } from '../worker/lib/endpoint-persistence.js'
 import {
-  provisionEndpointSigningSecret,
   resolveEndpointSigningSecrets,
   rotateEndpointSigningSecret,
 } from '../worker/lib/endpoint-secret-store.js'
@@ -25,6 +24,9 @@ async function seedEndpoint(suffix: string) {
       eventTypes: [],
     },
     {
+      endpointSecretKeyVersion: 'v1',
+      endpointSecretKeyring: keyring,
+      createSigningSecret: () => secretA,
       createId: (prefix) => `${prefix}_rotation_${suffix}`,
     },
   )
@@ -33,10 +35,6 @@ async function seedEndpoint(suffix: string) {
 describe('D1 endpoint signing secret rotation', () => {
   it('returns active then previous during the grace window', async () => {
     const endpoint = await seedEndpoint('grace')
-
-    await provisionEndpointSigningSecret(env.DB, endpoint.id, 'v1', keyring, {
-      createSecret: () => secretA,
-    })
 
     const rotated = await rotateEndpointSigningSecret(env.DB, endpoint.id, 'v2', keyring, {
       nowMilliseconds: () => Date.parse('2026-08-07T02:00:00.000Z'),
@@ -64,10 +62,6 @@ describe('D1 endpoint signing secret rotation', () => {
   it('uses only the active secret after grace expires', async () => {
     const endpoint = await seedEndpoint('expired')
 
-    await provisionEndpointSigningSecret(env.DB, endpoint.id, 'v1', keyring, {
-      createSecret: () => secretA,
-    })
-
     await rotateEndpointSigningSecret(env.DB, endpoint.id, 'v1', keyring, {
       nowMilliseconds: () => Date.parse('2026-08-07T04:00:00.000Z'),
       graceSeconds: 60,
@@ -86,10 +80,6 @@ describe('D1 endpoint signing secret rotation', () => {
 
   it('retains only the immediately previous generation', async () => {
     const endpoint = await seedEndpoint('second')
-
-    await provisionEndpointSigningSecret(env.DB, endpoint.id, 'v1', keyring, {
-      createSecret: () => secretA,
-    })
 
     await rotateEndpointSigningSecret(env.DB, endpoint.id, 'v1', keyring, {
       nowMilliseconds: () => Date.parse('2026-08-07T05:00:00.000Z'),
@@ -136,10 +126,6 @@ describe('D1 endpoint signing secret rotation', () => {
 
   it('rejects an unbounded grace window', async () => {
     const endpoint = await seedEndpoint('bounded')
-
-    await provisionEndpointSigningSecret(env.DB, endpoint.id, 'v1', keyring, {
-      createSecret: () => secretA,
-    })
 
     await expect(
       rotateEndpointSigningSecret(env.DB, endpoint.id, 'v1', keyring, {

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { RelayDatabase, RelayStatement } from '../worker/lib/database.js'
 import { createEndpoint, replaceEndpointSubscriptions } from '../worker/lib/endpoint-persistence.js'
+import {
+  TEST_ENDPOINT_CRYPTO_DEPENDENCIES,
+  TEST_ENDPOINT_SIGNING_SECRET,
+} from './test-endpoint-secret.js'
 
 class FakeStatement implements RelayStatement {
   readonly query: string
@@ -64,6 +68,8 @@ describe('endpoint persistence', () => {
         eventTypes: ['invoice.paid', 'invoice.created', 'invoice.paid'],
       },
       {
+        ...TEST_ENDPOINT_CRYPTO_DEPENDENCIES,
+        createSigningSecret: () => TEST_ENDPOINT_SIGNING_SECRET,
         now: () => '2026-08-05T12:00:00.000Z',
         createId: (prefix) => `${prefix}_created`,
       },
@@ -74,11 +80,12 @@ describe('endpoint persistence', () => {
       name: 'Billing webhook',
       url: 'https://hooks.example.test/billing',
       status: 'pending',
+      signingSecret: TEST_ENDPOINT_SIGNING_SECRET,
       eventTypes: ['invoice.created', 'invoice.paid'],
       createdAt: '2026-08-05T12:00:00.000Z',
     })
 
-    expect(database.batched).toHaveLength(4)
+    expect(database.batched).toHaveLength(5)
   })
 
   it('replaces subscriptions in one batch', async () => {
@@ -142,6 +149,8 @@ describe('endpoint persistence', () => {
       eventTypes: [''],
     },
   ])('rejects invalid endpoint input %#', async (input) => {
-    await expect(createEndpoint(new FakeDatabase(), input)).rejects.toBeInstanceOf(TypeError)
+    await expect(
+      createEndpoint(new FakeDatabase(), input, TEST_ENDPOINT_CRYPTO_DEPENDENCIES),
+    ).rejects.toBeInstanceOf(TypeError)
   })
 })

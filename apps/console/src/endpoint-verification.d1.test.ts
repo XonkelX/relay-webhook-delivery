@@ -2,6 +2,7 @@ import { env } from 'cloudflare:workers'
 import { describe, expect, it, vi } from 'vitest'
 import { createEndpoint } from '../worker/lib/endpoint-persistence.js'
 import { verifyEndpoint } from '../worker/lib/endpoint-verification.js'
+import { TEST_ENDPOINT_CRYPTO_DEPENDENCIES } from './test-endpoint-secret.js'
 
 const now = Date.parse('2026-08-06T22:00:00.000Z')
 
@@ -14,6 +15,7 @@ async function seedEndpoint(suffix: string): Promise<string> {
       eventTypes: [],
     },
     {
+      ...TEST_ENDPOINT_CRYPTO_DEPENDENCIES,
       now: () => '2026-08-06T21:55:00.000Z',
       createId: (prefix) => `${prefix}_verify_${suffix}`,
     },

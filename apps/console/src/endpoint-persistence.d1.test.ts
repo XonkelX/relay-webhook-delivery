@@ -1,6 +1,7 @@
 import { env } from 'cloudflare:workers'
 import { describe, expect, it } from 'vitest'
 import { createEndpoint, replaceEndpointSubscriptions } from '../worker/lib/endpoint-persistence.js'
+import { TEST_ENDPOINT_CRYPTO_DEPENDENCIES } from './test-endpoint-secret.js'
 
 describe('D1 endpoint persistence', () => {
   it('persists pending endpoints and atomically replaces subscriptions', async () => {
@@ -12,6 +13,7 @@ describe('D1 endpoint persistence', () => {
         eventTypes: ['order.created', 'order.cancelled', 'order.created'],
       },
       {
+        ...TEST_ENDPOINT_CRYPTO_DEPENDENCIES,
         now: () => '2026-08-05T12:15:00.000Z',
         createId: (prefix) => `${prefix}_endpoint_d1`,
       },
@@ -91,6 +93,7 @@ describe('D1 endpoint persistence', () => {
           eventTypes: ['order.created'],
         },
         {
+          ...TEST_ENDPOINT_CRYPTO_DEPENDENCIES,
           now: () => '2026-08-05T12:30:00.000Z',
           createId: (prefix) => `${prefix}_blocked_d1`,
         },

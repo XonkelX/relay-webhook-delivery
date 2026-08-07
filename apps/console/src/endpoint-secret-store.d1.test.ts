@@ -1,10 +1,7 @@
 import { env } from 'cloudflare:workers'
 import { describe, expect, it } from 'vitest'
 import { createEndpoint } from '../worker/lib/endpoint-persistence.js'
-import {
-  provisionEndpointSigningSecret,
-  resolveEndpointSigningSecret,
-} from '../worker/lib/endpoint-secret-store.js'
+import { resolveEndpointSigningSecret } from '../worker/lib/endpoint-secret-store.js'
 
 const rawSecret = `rly_whsec_${'a'.repeat(64)}`
 
@@ -13,7 +10,7 @@ const keyring = {
 }
 
 describe('D1 endpoint signing secret storage', () => {
-  it('stores only encrypted secret material and resolves the plaintext', async () => {
+  it('creates an endpoint with exactly one encrypted active secret', async () => {
     const endpoint = await createEndpoint(
       env.DB,
       {
@@ -22,25 +19,17 @@ describe('D1 endpoint signing secret storage', () => {
         eventTypes: [],
       },
       {
+        endpointSecretKeyVersion: 'v1',
+        endpointSecretKeyring: keyring,
+        createSigningSecret: () => rawSecret,
         now: () => '2026-08-06T23:00:00.000Z',
         createId: (prefix) => `${prefix}_secret_store`,
       },
     )
 
-    await expect(
-      provisionEndpointSigningSecret(env.DB, endpoint.id, 'v1', keyring, {
-        now: () => '2026-08-06T23:01:00.000Z',
-        createSecret: () => rawSecret,
-      }),
-    ).resolves.toEqual({
-      endpointId: endpoint.id,
-      rawSecret,
-      generation: 1,
-      keyVersion: 'v1',
-      createdAt: '2026-08-06T23:01:00.000Z',
-    })
+    expect(endpoint.signingSecret).toBe(rawSecret)
 
-    const stored = await env.DB.prepare(
+    const rows = await env.DB.prepare(
       `SELECT
            generation,
            state,
@@ -52,7 +41,7 @@ describe('D1 endpoint signing secret storage', () => {
          WHERE endpoint_id = ?`,
     )
       .bind(endpoint.id)
-      .first<{
+      .all<{
         generation: number
         state: string
         key_version: string
@@ -61,7 +50,11 @@ describe('D1 endpoint signing secret storage', () => {
         valid_until: string | null
       }>()
 
-    expect(stored).not.toBeNull()
+    expect(rows.results).toHaveLength(1)
+
+    const stored = rows.results[0]
+
+    expect(stored).toBeDefined()
     expect(stored?.generation).toBe(1)
     expect(stored?.state).toBe('active')
     expect(stored?.key_version).toBe('v1')
@@ -74,36 +67,36 @@ describe('D1 endpoint signing secret storage', () => {
     )
   })
 
-  it('rejects a second active secret provision', async () => {
+  it('does not persist the plaintext signing secret', async () => {
     const endpoint = await createEndpoint(
       env.DB,
       {
-        name: 'Duplicate secret endpoint',
-        url: 'https://duplicate-secret.example.test/webhook',
+        name: 'Plaintext guard endpoint',
+        url: 'https://plaintext-guard.example.test/webhook',
         eventTypes: [],
       },
       {
-        now: () => '2026-08-06T23:10:00.000Z',
-        createId: (prefix) => `${prefix}_secret_duplicate`,
+        endpointSecretKeyVersion: 'v1',
+        endpointSecretKeyring: keyring,
+        createSigningSecret: () => rawSecret,
+        createId: (prefix) => `${prefix}_plaintext_guard`,
       },
     )
 
-    await provisionEndpointSigningSecret(env.DB, endpoint.id, 'v1', keyring, {
-      createSecret: () => rawSecret,
-    })
+    const stored = await env.DB.prepare(
+      `SELECT ciphertext_base64
+         FROM endpoint_signing_secrets
+         WHERE endpoint_id = ?`,
+    )
+      .bind(endpoint.id)
+      .first<{
+        ciphertext_base64: string
+      }>()
 
-    await expect(
-      provisionEndpointSigningSecret(env.DB, endpoint.id, 'v1', keyring, {
-        createSecret: () => `rly_whsec_${'b'.repeat(64)}`,
-      }),
-    ).rejects.toThrow('Endpoint already has an active signing secret.')
+    expect(stored?.ciphertext_base64).not.toContain(rawSecret)
   })
 
-  it('rejects secret operations for a missing endpoint', async () => {
-    await expect(
-      provisionEndpointSigningSecret(env.DB, 'ep_missing_secret', 'v1', keyring),
-    ).rejects.toThrow('Endpoint does not exist.')
-
+  it('fails closed when no endpoint secret exists', async () => {
     await expect(
       resolveEndpointSigningSecret(env.DB, 'ep_missing_secret', keyring),
     ).rejects.toThrow('Endpoint does not have an active signing secret.')

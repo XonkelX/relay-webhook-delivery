@@ -2,7 +2,6 @@ import { env } from 'cloudflare:workers'
 import { describe, expect, it } from 'vitest'
 import { createEndpoint } from '../worker/lib/endpoint-persistence.js'
 import {
-  provisionEndpointSigningSecret,
   resolveEndpointSigningSecrets,
   rotateEndpointSigningSecret,
 } from '../worker/lib/endpoint-secret-store.js'
@@ -26,13 +25,12 @@ describe('endpoint secret rotation delivery signatures', () => {
         eventTypes: [],
       },
       {
+        endpointSecretKeyVersion: 'v1',
+        endpointSecretKeyring: keyring,
+        createSigningSecret: () => previousSecret,
         createId: (prefix) => `${prefix}_dual_signature`,
       },
     )
-
-    await provisionEndpointSigningSecret(env.DB, endpoint.id, 'v1', keyring, {
-      createSecret: () => previousSecret,
-    })
 
     await rotateEndpointSigningSecret(env.DB, endpoint.id, 'v1', keyring, {
       nowMilliseconds: () => Date.parse('2026-08-07T02:00:00.000Z'),
