@@ -50,7 +50,7 @@ Relay provides at-least-once delivery. An event may be delivered more than once,
 
 ## Environment Variables
 
-Relay uses Cloudflare D1 and Queue bindings configured through `wrangler.jsonc`. During Phase 3, the delivery consumer resolves a temporary `DELIVERY_SIGNING_SECRET` Worker secret; Phase 4 will replace this with encrypted endpoint-specific signing secrets.
+Relay uses Cloudflare D1 and Queue bindings configured through `wrangler.jsonc`. Endpoint signing secrets are stored encrypted in D1 with AES-GCM and decrypted at delivery time using a versioned Worker-held master key.
 
 Document non-secret examples in `.env.example`. Store local Worker secrets in an ignored `.dev.vars` file. Never commit credentials, tokens, signing secrets, or production identifiers.
 

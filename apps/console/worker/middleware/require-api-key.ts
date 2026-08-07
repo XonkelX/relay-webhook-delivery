@@ -7,7 +7,8 @@ export interface RelayWorkerEnvironment {
   Bindings: {
     DB: RelayDatabase
     DELIVERY_QUEUE: DeliveryQueueProducer
-    DELIVERY_SIGNING_SECRET?: string
+    ENDPOINT_SECRET_MASTER_KEY_V1?: string
+    ENDPOINT_SECRET_MASTER_KEY_V2?: string
   }
   Variables: {
     apiKey: AuthenticatedApiKey

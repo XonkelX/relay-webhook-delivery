@@ -17,7 +17,7 @@ function createEnvironment(): RelayWorkerEnvironment['Bindings'] {
     DELIVERY_QUEUE: {
       send: vi.fn(),
     },
-    DELIVERY_SIGNING_SECRET: 'phase3_test_secret',
+    ENDPOINT_SECRET_MASTER_KEY_V1: btoa('a'.repeat(32)),
   }
 }
 
