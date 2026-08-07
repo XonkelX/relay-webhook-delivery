@@ -1,7 +1,8 @@
 import { Hono } from 'hono'
+import { publishPendingOutbox } from './lib/outbox-publisher.js'
+import { runRetentionSweep } from './lib/retention.js'
 import { requireApiKey, type RelayWorkerEnvironment } from './middleware/require-api-key.js'
 import { enforceSameOriginApi, securityHeaders } from './middleware/security-http.js'
-import { publishPendingOutbox } from './lib/outbox-publisher.js'
 import { handleDeliveryQueue } from './queue-handler.js'
 import { eventsRoute } from './routes/events.js'
 import { ownerRoute } from './routes/owner.js'
@@ -61,14 +62,26 @@ const worker = Object.assign(app, {
     const scheduledAt = new Date(controller.scheduledTime).toISOString()
 
     context.waitUntil(
-      publishPendingOutbox(env.DB, env.DELIVERY_QUEUE, 100, scheduledAt).then((result) => {
-        if (result.failed > 0) {
-          console.warn('Scheduled outbox publication incomplete', {
-            published: result.published,
-            failed: result.failed,
-          })
+      (async () => {
+        try {
+          const result = await publishPendingOutbox(env.DB, env.DELIVERY_QUEUE, 100, scheduledAt)
+
+          if (result.failed > 0) {
+            console.warn('Scheduled outbox publication incomplete', {
+              published: result.published,
+              failed: result.failed,
+            })
+          }
+        } catch (error) {
+          console.error('Scheduled outbox publication failed', error)
         }
-      }),
+
+        try {
+          await runRetentionSweep(env.DB, scheduledAt)
+        } catch (error) {
+          console.error('Scheduled retention sweep failed', error)
+        }
+      })(),
     )
   },
 })
