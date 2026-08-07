@@ -1,7 +1,7 @@
 # Relay Threat Model
 
-- Status: Draft
-- Last reviewed: 2026-08-04
+- Status: Active
+- Last reviewed: 2026-08-07
 - Scope: Initial single-owner release and public demo mode
 
 ## System Summary
@@ -72,15 +72,23 @@ Large payloads, excessive retries, unbounded logs, or abusive endpoint creation 
 
 Webhook response bodies or headers could contain secrets or personal information.
 
-## Initial Mitigations
+## Implemented Mitigations
 
-- Never expose stored signing secrets after creation.
+- Return endpoint signing secrets only when initially created or explicitly rotated; persist only AES-GCM encrypted secret material.
+- Bind encrypted endpoint secrets to endpoint identity and a versioned Worker-held master key.
+- Allow only a bounded previous-secret grace window during rotation and emit active-plus-previous signatures only during that window.
+- Require signed challenge-response verification before an endpoint becomes active.
+- Return changed endpoint URLs to pending verification and cancel their scheduled delivery work.
+- Require HTTPS destination URLs and reject credentials, fragments, IP literals, single-label or private-style hostnames, and explicit non-443 ports.
+- Disable automatic redirects for verification and delivery requests so redirect chains cannot bypass the submitted destination policy.
+- Prevent pending, paused, or disabled endpoints from executing queued deliveries.
+- Protect owner sessions with signed Secure HttpOnly SameSite=Strict cookies, short TTLs, CSRF binding for mutations, revocation, and explicit logout.
+- Apply fail-closed per-key and global daily event quotas backed by transactional D1 counters.
+- Apply restrictive CSP and browser-origin policy plus no-store and defensive HTTP response headers.
+- Return generic server errors without exposing internal exception details.
 - Redact secrets and authorization data from logs.
-- Enforce owner authorization on every mutation route.
 - Keep public demo mode read-only and logically separated.
-- Validate and normalize destination URLs.
-- Block unsafe destination addresses before delivery.
-- Use timestamped signatures with documented verification tolerance.
+- Use timestamped webhook signatures with documented verification tolerance.
 - Persist attempts and use conditional claims with lease expiration.
 - Enforce payload, response, retry, and batch-size limits.
 - Truncate and sanitize captured response data.
@@ -90,10 +98,9 @@ Webhook response bodies or headers could contain secrets or personal information
 
 The following require further design before production release:
 
-- Complete SSRF protection for redirects and DNS rebinding
-- Authentication provider selection and session hardening
-- Secret encryption and rotation lifecycle
-- Abuse prevention and rate limiting
+- DNS resolution and rebinding defenses beyond the current hostname and IP-literal destination policy
+- Owner authentication bootstrap and provider selection
+- Public Failure Lab abuse controls and broader rate limiting
 - Data-retention and deletion policies
 - Incident response and audit-log requirements
 - Multi-tenant isolation

@@ -1,5 +1,5 @@
 import type { JsonValue } from '@relay/contracts'
-import { createWebhookHeaders, type WebhookSignatureInput } from './webhook-signing.js'
+import { createWebhookHeadersForSecrets } from './webhook-signing.js'
 
 export interface OutboundWebhookEvent {
   id: string
@@ -12,7 +12,7 @@ export interface BuildWebhookRequestInput {
   deliveryId: string
   endpointUrl: string
   event: OutboundWebhookEvent
-  signingSecret: string
+  signingSecrets: readonly string[]
   timestampSeconds: number
 }
 
@@ -45,14 +45,12 @@ export async function buildWebhookRequest(
   const webhookId = createWebhookId(input.deliveryId)
   const rawBody = serializeWebhookBody(input.event)
 
-  const signatureInput: WebhookSignatureInput = {
+  const headers = await createWebhookHeadersForSecrets({
     messageId: webhookId,
     timestamp: input.timestampSeconds,
     rawBody,
-    secret: input.signingSecret,
-  }
-
-  const headers = await createWebhookHeaders(signatureInput)
+    secrets: input.signingSecrets,
+  })
 
   return {
     webhookId,

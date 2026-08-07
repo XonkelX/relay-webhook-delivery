@@ -2,6 +2,7 @@ import type { AttemptOutcome, DeliveryQueueMessage } from '@relay/contracts'
 import { completeDeliveryAttempt, startDeliveryAttempt } from './delivery-attempt.js'
 import { claimDelivery, type ClaimDeliveryResult } from './delivery-claim.js'
 import { loadDeliveryContext } from './delivery-context.js'
+import { cancelClaimedDeliveryIfEndpointInactive } from './delivery-endpoint-gate.js'
 import { calculateBackoffDelay, decideHttpRetry } from './delivery-policy.js'
 import type { RelayDatabase } from './database.js'
 import type { RelayIdPrefix } from './ids.js'
@@ -11,7 +12,7 @@ import { buildWebhookRequest, createWebhookId } from './webhook-request.js'
 const REQUEUE_DELAY_SECONDS = 5
 
 export interface DeliveryProcessorDependencies {
-  resolveSigningSecret(endpointId: string): Promise<string>
+  resolveSigningSecrets(endpointId: string): Promise<string[]>
 
   fetcher?: typeof fetch
   nowMilliseconds?: () => number
@@ -26,7 +27,7 @@ export interface DeliveryProcessorDependencies {
 export type ProcessDeliveryResult =
   | {
       action: 'ack'
-      reason: 'completed' | 'missing' | 'terminal'
+      reason: 'completed' | 'missing' | 'terminal' | 'cancelled'
       outcome?: AttemptOutcome
     }
   | {
@@ -79,6 +80,20 @@ export async function processDeliveryMessage(
     return handleClaimFailure(claim)
   }
 
+  const cancelledForInactiveEndpoint = await cancelClaimedDeliveryIfEndpointInactive(
+    database,
+    claim.value.id,
+    claim.value.leaseToken,
+    claimedAt,
+  )
+
+  if (cancelledForInactiveEndpoint) {
+    return {
+      action: 'ack',
+      reason: 'cancelled',
+    }
+  }
+
   const context = await loadDeliveryContext(database, claim.value.id)
 
   if (!context) {
@@ -89,7 +104,7 @@ export async function processDeliveryMessage(
     }
   }
 
-  const signingSecret = await dependencies.resolveSigningSecret(context.endpointId)
+  const signingSecrets = await dependencies.resolveSigningSecrets(context.endpointId)
 
   const requestStartedMilliseconds = nowMilliseconds()
   const requestStartedAt = toIso(requestStartedMilliseconds)
@@ -128,7 +143,7 @@ export async function processDeliveryMessage(
       timestamp: context.eventCreatedAt,
       data: context.eventData,
     },
-    signingSecret,
+    signingSecrets,
     timestampSeconds: Math.floor(requestStartedMilliseconds / 1000),
   })
 

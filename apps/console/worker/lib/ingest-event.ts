@@ -37,6 +37,11 @@ export type IngestEventResult =
       ok: false
       reason: 'idempotency_conflict'
     }
+  | {
+      ok: false
+      reason: 'quota_exceeded'
+      scope: 'api_key' | 'global'
+    }
 
 export interface IngestEventDependencies {
   now?: () => string
@@ -229,6 +234,31 @@ export async function ingestEvent(
   statements.push(
     database
       .prepare(
+        `INSERT INTO global_daily_usage (
+           usage_date,
+           accepted_event_count,
+           generated_delivery_count,
+           payload_bytes,
+           updated_at
+         )
+         VALUES (?, 1, ?, ?, ?)
+         ON CONFLICT (usage_date)
+         DO UPDATE SET
+           accepted_event_count =
+             accepted_event_count + 1,
+           generated_delivery_count =
+             generated_delivery_count +
+             excluded.generated_delivery_count,
+           payload_bytes =
+             payload_bytes + excluded.payload_bytes,
+           updated_at = excluded.updated_at`,
+      )
+      .bind(usageDate, endpointResult.results.length, request.payloadBytes, createdAt),
+  )
+
+  statements.push(
+    database
+      .prepare(
         `INSERT INTO audit_log (
            id,
            actor_type,
@@ -256,6 +286,24 @@ export async function ingestEvent(
   try {
     await database.batch(statements)
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+
+    if (errorMessage.includes('quota_per_key_daily')) {
+      return {
+        ok: false,
+        reason: 'quota_exceeded',
+        scope: 'api_key',
+      }
+    }
+
+    if (errorMessage.includes('quota_global_daily')) {
+      return {
+        ok: false,
+        reason: 'quota_exceeded',
+        scope: 'global',
+      }
+    }
+
     const concurrentEvent = await findExistingEvent(database, apiKeyId, request.idempotencyKey)
 
     if (concurrentEvent) {

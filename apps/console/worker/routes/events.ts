@@ -25,6 +25,23 @@ eventsRoute.post('/', async (context) => {
     const result = await ingestEvent(context.env.DB, context.get('apiKey').id, parsed.value)
 
     if (!result.ok) {
+      if (result.reason === 'quota_exceeded') {
+        context.header('Cache-Control', 'no-store')
+
+        return context.json(
+          {
+            error: {
+              code: 'QUOTA_EXCEEDED',
+              message:
+                result.scope === 'api_key'
+                  ? 'The API key daily event quota has been reached.'
+                  : 'The Relay daily event quota has been reached.',
+            },
+          },
+          429,
+        )
+      }
+
       return context.json(
         {
           error: {

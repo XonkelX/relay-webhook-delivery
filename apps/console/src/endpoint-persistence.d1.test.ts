@@ -1,6 +1,7 @@
 import { env } from 'cloudflare:workers'
 import { describe, expect, it } from 'vitest'
 import { createEndpoint, replaceEndpointSubscriptions } from '../worker/lib/endpoint-persistence.js'
+import { TEST_ENDPOINT_CRYPTO_DEPENDENCIES } from './test-endpoint-secret.js'
 
 describe('D1 endpoint persistence', () => {
   it('persists pending endpoints and atomically replaces subscriptions', async () => {
@@ -12,6 +13,7 @@ describe('D1 endpoint persistence', () => {
         eventTypes: ['order.created', 'order.cancelled', 'order.created'],
       },
       {
+        ...TEST_ENDPOINT_CRYPTO_DEPENDENCIES,
         now: () => '2026-08-05T12:15:00.000Z',
         createId: (prefix) => `${prefix}_endpoint_d1`,
       },
@@ -77,5 +79,35 @@ describe('D1 endpoint persistence', () => {
       .first<{ count: number }>()
 
     expect(auditCount?.count).toBe(2)
+  })
+
+  it('does not persist endpoints rejected by the URL policy', async () => {
+    const name = 'Blocked endpoint target'
+
+    await expect(
+      createEndpoint(
+        env.DB,
+        {
+          name,
+          url: 'http://127.0.0.1/webhook',
+          eventTypes: ['order.created'],
+        },
+        {
+          ...TEST_ENDPOINT_CRYPTO_DEPENDENCIES,
+          now: () => '2026-08-05T12:30:00.000Z',
+          createId: (prefix) => `${prefix}_blocked_d1`,
+        },
+      ),
+    ).rejects.toBeInstanceOf(TypeError)
+
+    const stored = await env.DB.prepare(
+      `SELECT COUNT(*) AS count
+         FROM endpoints
+         WHERE name = ?`,
+    )
+      .bind(name)
+      .first<{ count: number }>()
+
+    expect(stored?.count).toBe(0)
   })
 })

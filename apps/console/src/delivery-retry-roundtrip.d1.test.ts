@@ -116,7 +116,7 @@ describe('D1 delivery retry roundtrip', () => {
     let attempt = 0
 
     const dependencies = {
-      resolveSigningSecret: async () => 'roundtrip_secret',
+      resolveSigningSecrets: async () => ['roundtrip_secret'],
       fetcher,
       nowMilliseconds: () => currentTime,
       random: () => 0,

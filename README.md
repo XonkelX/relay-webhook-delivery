@@ -4,11 +4,13 @@ Relay is a reliable outbound webhook delivery platform built on Cloudflare Worke
 
 ## Project Status
 
-Relay has completed Phase 3: asynchronous webhook delivery and retry execution.
+Relay has completed Phase 4: endpoint and secret security.
 
-Relay now accepts authenticated events, creates delivery fanout atomically, publishes work through a durable outbox, consumes Cloudflare Queue messages, claims deliveries with leases, signs stable webhook requests, executes bounded outbound HTTP requests, records attempt evidence, classifies failures, honors `Retry-After`, schedules jittered retries through D1, recovers expired leases, and exhausts deliveries after the configured attempt limit.
+Relay accepts authenticated events, creates delivery fanout atomically, publishes work through a durable outbox, consumes Cloudflare Queue messages, claims deliveries with leases, signs stable webhook requests, records attempt evidence, classifies failures, schedules bounded retries, and recovers expired leases.
 
-Phase 4 endpoint verification, SSRF defenses, encrypted endpoint-specific signing secrets, secret rotation, hardened owner-session flows, and quota enforcement are not implemented yet.
+Phase 4 adds strict public-HTTPS endpoint URL policy, signed challenge-response endpoint verification, mandatory re-verification after URL changes, encrypted endpoint-specific signing secrets, bounded dual-signature secret rotation, delivery suppression for inactive endpoints, hardened signed owner sessions with CSRF protection, fail-closed per-key and global daily quotas, restrictive browser-origin policy, security headers, and generic server error responses.
+
+Phase 5 will connect the operational Console to production data and delivery controls.
 
 ## Delivery Guarantee
 
@@ -50,7 +52,7 @@ Relay provides at-least-once delivery. An event may be delivered more than once,
 
 ## Environment Variables
 
-Relay uses Cloudflare D1 and Queue bindings configured through `wrangler.jsonc`. During Phase 3, the delivery consumer resolves a temporary `DELIVERY_SIGNING_SECRET` Worker secret; Phase 4 will replace this with encrypted endpoint-specific signing secrets.
+Relay uses Cloudflare D1 and Queue bindings configured through `wrangler.jsonc`. Endpoint signing secrets are stored encrypted in D1 with AES-GCM and decrypted at delivery time using a versioned Worker-held master key.
 
 Document non-secret examples in `.env.example`. Store local Worker secrets in an ignored `.dev.vars` file. Never commit credentials, tokens, signing secrets, or production identifiers.
 

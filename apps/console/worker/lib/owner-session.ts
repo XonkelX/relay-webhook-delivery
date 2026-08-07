@@ -5,8 +5,8 @@ import { createPrefixedId } from './ids.js'
 
 const SESSION_NAMESPACE = 'rly_owner_'
 const SESSION_SECRET_BYTES = 32
-const DEFAULT_TTL_SECONDS = 8 * 60 * 60
-const MAX_TTL_SECONDS = 30 * 24 * 60 * 60
+const DEFAULT_TTL_SECONDS = 60 * 60
+const MAX_TTL_SECONDS = 8 * 60 * 60
 
 interface OwnerSessionRow {
   id: string
@@ -49,7 +49,7 @@ function createRawSessionToken(): string {
 
 function calculateExpiry(createdAt: string, ttlSeconds: number): string {
   if (!Number.isInteger(ttlSeconds) || ttlSeconds < 1 || ttlSeconds > MAX_TTL_SECONDS) {
-    throw new TypeError('Session TTL must be an integer between 1 second and 30 days.')
+    throw new TypeError('Session TTL must be an integer between 1 second and 8 hours.')
   }
 
   const createdTime = Date.parse(createdAt)
