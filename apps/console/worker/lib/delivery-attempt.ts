@@ -273,6 +273,21 @@ export async function completeDeliveryAttempt(
       ),
   ]
 
+  if (deliveryStatus === 'retrying') {
+    statements.push(
+      database
+        .prepare(
+          `UPDATE delivery_outbox
+           SET available_at = ?,
+               published_at = NULL,
+               reason = 'retry',
+               last_error = NULL
+           WHERE delivery_id = ?`,
+        )
+        .bind(nextAttemptAt, input.deliveryId),
+    )
+  }
+
   await database.batch(statements)
 
   const completed = await database
