@@ -1,9 +1,10 @@
-import type { DeliveryQueueMessage } from '@relay/contracts'
+import type { DeliveryQueueMessage, DeliveryQueueReason } from '@relay/contracts'
 import type { RelayDatabase } from './database.js'
 
 interface PendingOutboxRow {
   id: string
   delivery_id: string
+  reason?: DeliveryQueueReason
 }
 
 export interface DeliveryQueueProducer {
@@ -35,7 +36,7 @@ async function publishRows(
         {
           version: 1,
           deliveryId: row.delivery_id,
-          reason: 'initial',
+          reason: row.reason ?? 'initial',
         },
         {
           contentType: 'json',
@@ -87,7 +88,7 @@ export async function publishEventOutbox(
 ): Promise<PublishOutboxResult> {
   const pending = await database
     .prepare(
-      `SELECT delivery_outbox.id, delivery_outbox.delivery_id
+      `SELECT delivery_outbox.id, delivery_outbox.delivery_id, delivery_outbox.reason
        FROM delivery_outbox
        INNER JOIN deliveries
          ON deliveries.id = delivery_outbox.delivery_id
@@ -113,7 +114,7 @@ export async function publishPendingOutbox(
 
   const pending = await database
     .prepare(
-      `SELECT id, delivery_id
+      `SELECT id, delivery_id, reason
        FROM delivery_outbox
        WHERE published_at IS NULL
          AND available_at <= ?

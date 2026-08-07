@@ -30,6 +30,15 @@
         "queue": "relay-deliveries",
       },
     ],
+    "consumers": [
+      {
+        "queue": "relay-deliveries",
+        "max_batch_size": 10,
+        "max_batch_timeout": 5,
+        "max_retries": 5,
+        "dead_letter_queue": "relay-deliveries-dlq",
+      },
+    ],
   },
   "triggers": {
     "crons": ["* * * * *"],
