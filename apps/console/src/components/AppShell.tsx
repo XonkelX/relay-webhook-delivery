@@ -6,9 +6,13 @@ interface AppShellProps {
   activePage: ConsolePage
   children: ReactNode
   onNavigate: (page: ConsolePage) => void
+  onLogout: () => void
 }
 
-const navigation: Array<{ page: ConsolePage; label: string }> = [
+const navigation: Array<{
+  page: ConsolePage
+  label: string
+}> = [
   { page: 'overview', label: 'Overview' },
   { page: 'events', label: 'Event stream' },
   { page: 'endpoints', label: 'Endpoints' },
@@ -16,7 +20,7 @@ const navigation: Array<{ page: ConsolePage; label: string }> = [
   { page: 'health', label: 'System health' },
 ]
 
-export function AppShell({ activePage, children, onNavigate }: AppShellProps) {
+export function AppShell({ activePage, children, onNavigate, onLogout }: AppShellProps) {
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">
@@ -53,8 +57,14 @@ export function AppShell({ activePage, children, onNavigate }: AppShellProps) {
         </nav>
 
         <div className="sidebar__footer">
-          <span className="environment-dot" aria-hidden="true" />
-          Demo environment
+          <div className="sidebar__environment">
+            <span className="environment-dot" aria-hidden="true" />
+            Owner console
+          </div>
+
+          <button className="sidebar__logout" type="button" onClick={onLogout}>
+            Sign out
+          </button>
         </div>
       </aside>
 

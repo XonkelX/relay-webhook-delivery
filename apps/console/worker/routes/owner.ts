@@ -120,6 +120,14 @@ ownerRoute.post('/session', async (context) => {
   )
 })
 ownerRoute.use('*', requireOwnerSession)
+ownerRoute.get('/session', (context) => {
+  const session = context.get('ownerSession')
+
+  return context.json({
+    status: 'authenticated',
+    expiresAt: session.expiresAt,
+  })
+})
 
 ownerRoute.get('/events', async (context) => {
   let options

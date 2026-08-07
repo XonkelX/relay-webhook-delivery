@@ -1,5 +1,6 @@
 import { Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams } from 'react-router'
-import { AppShell, type ConsolePage } from './components/AppShell'
+import type { ConsolePage } from './components/AppShell'
+import { OwnerConsoleGate } from './components/OwnerConsoleGate'
 import { eventFixtures } from './data/events'
 import type { EventFixture } from './data/types'
 import { DeliveryInspectorPage } from './pages/DeliveryInspectorPage'
@@ -33,12 +34,12 @@ function ConsoleLayout() {
   const navigate = useNavigate()
 
   return (
-    <AppShell
+    <OwnerConsoleGate
       activePage={getActivePage(location.pathname)}
       onNavigate={(page) => navigate(pathsByPage[page])}
     >
       <Outlet />
-    </AppShell>
+    </OwnerConsoleGate>
   )
 }
 

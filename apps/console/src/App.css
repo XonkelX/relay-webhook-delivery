@@ -1540,3 +1540,115 @@
   overflow-wrap: anywhere;
   word-break: break-word;
 }
+
+.sidebar__footer {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sidebar__environment {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sidebar__logout {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid #293244;
+  border-radius: 8px;
+  background: transparent;
+  color: #8d98ad;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sidebar__logout:hover {
+  border-color: #3a465c;
+  background: #151a27;
+  color: #f4f7ff;
+}
+
+.owner-auth {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top right, rgba(66, 82, 255, 0.14), transparent 34rem), #080b12;
+}
+
+.owner-auth__card {
+  width: min(440px, 100%);
+  padding: 32px;
+  border: 1px solid #202838;
+  border-radius: 14px;
+  background: #0e131d;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+}
+
+.owner-auth__card h1 {
+  margin: 8px 0 12px;
+  font-size: 32px;
+  letter-spacing: -0.035em;
+}
+
+.owner-auth__card > p:not(.eyebrow) {
+  color: #929db1;
+  line-height: 1.6;
+}
+
+.owner-auth__form {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.owner-auth__form label {
+  color: #cbd3e3;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.owner-auth__form input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 13px;
+  border: 1px solid #30394a;
+  border-radius: 9px;
+  outline: none;
+  background: #0a0e16;
+  color: #edf1fa;
+  font: inherit;
+}
+
+.owner-auth__form input:focus {
+  border-color: #7c6cff;
+  box-shadow: 0 0 0 3px rgba(124, 108, 255, 0.14);
+}
+
+.owner-auth__form .primary-button {
+  margin-top: 4px;
+}
+
+.owner-auth__form .primary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}
+
+.owner-auth__error {
+  margin: 0;
+  color: #fca5a5;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.owner-auth__note {
+  margin: 22px 0 0;
+  padding-top: 18px;
+  border-top: 1px solid #202838;
+  color: #69768d !important;
+  font-size: 12px;
+}
