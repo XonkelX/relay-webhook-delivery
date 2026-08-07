@@ -11,7 +11,7 @@ import { buildWebhookRequest, createWebhookId } from './webhook-request.js'
 const REQUEUE_DELAY_SECONDS = 5
 
 export interface DeliveryProcessorDependencies {
-  resolveSigningSecret(endpointId: string): Promise<string>
+  resolveSigningSecrets(endpointId: string): Promise<string[]>
 
   fetcher?: typeof fetch
   nowMilliseconds?: () => number
@@ -89,7 +89,7 @@ export async function processDeliveryMessage(
     }
   }
 
-  const signingSecret = await dependencies.resolveSigningSecret(context.endpointId)
+  const signingSecrets = await dependencies.resolveSigningSecrets(context.endpointId)
 
   const requestStartedMilliseconds = nowMilliseconds()
   const requestStartedAt = toIso(requestStartedMilliseconds)
@@ -128,7 +128,7 @@ export async function processDeliveryMessage(
       timestamp: context.eventCreatedAt,
       data: context.eventData,
     },
-    signingSecret,
+    signingSecrets,
     timestampSeconds: Math.floor(requestStartedMilliseconds / 1000),
   })
 

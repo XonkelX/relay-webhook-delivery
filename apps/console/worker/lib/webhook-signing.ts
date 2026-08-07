@@ -67,3 +67,48 @@ export async function createWebhookHeaders(input: WebhookSignatureInput): Promis
 
   return headers
 }
+
+export interface WebhookMultiSignatureInput {
+  messageId: string
+  timestamp: number
+  rawBody: string
+  secrets: readonly string[]
+}
+
+export async function createWebhookHeadersForSecrets(
+  input: WebhookMultiSignatureInput,
+): Promise<Headers> {
+  const [primarySecret, ...additionalSecrets] = input.secrets
+
+  if (!primarySecret) {
+    throw new TypeError('At least one webhook signing secret is required.')
+  }
+
+  const headers = await createWebhookHeaders({
+    messageId: input.messageId,
+    timestamp: input.timestamp,
+    rawBody: input.rawBody,
+    secret: primarySecret,
+  })
+
+  const primarySignature = headers.get('webhook-signature')
+
+  if (!primarySignature) {
+    throw new Error('Primary webhook signature was not generated.')
+  }
+
+  const additionalSignatures = await Promise.all(
+    additionalSecrets.map((secret) =>
+      createWebhookSignature({
+        messageId: input.messageId,
+        timestamp: input.timestamp,
+        rawBody: input.rawBody,
+        secret,
+      }),
+    ),
+  )
+
+  headers.set('webhook-signature', [primarySignature, ...additionalSignatures].join(' '))
+
+  return headers
+}

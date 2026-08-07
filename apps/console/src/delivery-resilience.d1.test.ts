@@ -78,7 +78,7 @@ function dependencies(fetcher: typeof fetch, suffix: string) {
   let attempt = 0
 
   return {
-    resolveSigningSecret: async () => 'test_secret',
+    resolveSigningSecrets: async () => ['test_secret'],
     fetcher,
     nowMilliseconds: () => createdMs,
     random: () => 0,

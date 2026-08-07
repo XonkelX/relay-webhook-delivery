@@ -79,7 +79,7 @@ describe('D1 delivery exhaustion', () => {
           reason: 'retry',
         },
         {
-          resolveSigningSecret: async () => 'exhaust_secret',
+          resolveSigningSecrets: async () => ['exhaust_secret'],
           fetcher,
           nowMilliseconds: () => nowMs,
           random: () => 0,

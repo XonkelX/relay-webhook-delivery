@@ -1,7 +1,7 @@
 import { DeliveryQueueMessageSchema } from '@relay/contracts'
 import type { RelayDatabase } from './lib/database.js'
 import { buildEndpointSecretKeyring } from './lib/endpoint-secret-keyring.js'
-import { resolveEndpointSigningSecret } from './lib/endpoint-secret-store.js'
+import { resolveEndpointSigningSecrets } from './lib/endpoint-secret-store.js'
 import {
   processDeliveryMessage,
   type DeliveryProcessorDependencies,
@@ -48,8 +48,8 @@ export async function handleDeliveryQueue(
 
       try {
         const result = await processDelivery(env.DB, parsed.data, {
-          resolveSigningSecret: async (endpointId) =>
-            resolveEndpointSigningSecret(env.DB, endpointId, buildEndpointSecretKeyring(env)),
+          resolveSigningSecrets: async (endpointId) =>
+            resolveEndpointSigningSecrets(env.DB, endpointId, buildEndpointSecretKeyring(env)),
         })
 
         if (result.action === 'ack') {

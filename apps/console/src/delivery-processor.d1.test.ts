@@ -102,7 +102,7 @@ describe('D1 delivery processor', () => {
     let attemptSequence = 0
 
     const dependencies = {
-      resolveSigningSecret: async () => 'endpoint_secret',
+      resolveSigningSecrets: async () => ['endpoint_secret'],
       fetcher,
       nowMilliseconds: () => nowMs,
       random: () => 0,

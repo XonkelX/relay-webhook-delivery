@@ -77,7 +77,7 @@ describe('webhook request construction', () => {
       deliveryId: 'dlv_01JTEST',
       endpointUrl: 'https://example.test/webhooks',
       event,
-      signingSecret: 'endpoint_secret',
+      signingSecrets: ['endpoint_secret'],
       timestampSeconds: 1785834000,
     })
 
