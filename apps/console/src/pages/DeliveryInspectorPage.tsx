@@ -20,6 +20,16 @@ function isReplayable(delivery: DeliveryDetail) {
   )
 }
 
+function formatHeaders(headers: Record<string, string>) {
+  const entries = Object.entries(headers).sort(([left], [right]) => left.localeCompare(right))
+
+  if (entries.length === 0) {
+    return 'No headers captured.'
+  }
+
+  return entries.map(([name, value]) => `${name}: ${value}`).join('\n')
+}
+
 export function DeliveryInspectorPage({ eventId, onBack }: DeliveryInspectorPageProps) {
   const [detail, setDetail] = useState<EventDetailResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -52,6 +62,13 @@ export function DeliveryInspectorPage({ eventId, onBack }: DeliveryInspectorPage
 
   async function handleReplay(delivery: DeliveryDetail) {
     if (replayingId || !isReplayable(delivery)) return
+
+    const confirmed = window.confirm(
+      `Replay delivery ${delivery.id}? A new linked delivery will be created. ` +
+        'The original delivery and attempt history will remain unchanged.',
+    )
+
+    if (!confirmed) return
 
     setReplayingId(delivery.id)
     setReplayMessage(null)
@@ -140,6 +157,15 @@ export function DeliveryInspectorPage({ eventId, onBack }: DeliveryInspectorPage
             </dl>
           </article>
 
+          <details className="panel inspector-evidence">
+            <summary>
+              <span>Safe payload</span>
+              <small>Credential-shaped fields are redacted</small>
+            </summary>
+
+            <pre>{JSON.stringify(detail.safePayload, null, 2)}</pre>
+          </details>
+
           {replayMessage ? (
             <p className="inspector-message" aria-live="polite">
               {replayMessage}
@@ -223,6 +249,17 @@ export function DeliveryInspectorPage({ eventId, onBack }: DeliveryInspectorPage
                           </div>
                         ) : null}
 
+                        {delivery.replayedByDeliveryIds.length > 0 ? (
+                          <div>
+                            <dt>Replayed by</dt>
+                            <dd className="replay-lineage">
+                              {delivery.replayedByDeliveryIds.map((replayId) => (
+                                <code key={replayId}>{replayId}</code>
+                              ))}
+                            </dd>
+                          </div>
+                        ) : null}
+
                         {delivery.lastErrorClass ? (
                           <div>
                             <dt>Last error</dt>
@@ -232,6 +269,8 @@ export function DeliveryInspectorPage({ eventId, onBack }: DeliveryInspectorPage
                           </div>
                         ) : null}
                       </dl>
+
+                      <p className="retry-explanation">{delivery.retryExplanation}</p>
                     </section>
 
                     <section>
@@ -293,6 +332,16 @@ export function DeliveryInspectorPage({ eventId, onBack }: DeliveryInspectorPage
                                   {attempt.errorClass ? (
                                     <code className="attempt-error">{attempt.errorClass}</code>
                                   ) : null}
+
+                                  <details className="attempt-headers">
+                                    <summary>Safe request headers</summary>
+                                    <pre>{formatHeaders(attempt.requestHeaders)}</pre>
+                                  </details>
+
+                                  <details className="attempt-headers">
+                                    <summary>Safe response headers</summary>
+                                    <pre>{formatHeaders(attempt.responseHeaders)}</pre>
+                                  </details>
 
                                   {attempt.responseExcerpt ? (
                                     <pre className="attempt-response">

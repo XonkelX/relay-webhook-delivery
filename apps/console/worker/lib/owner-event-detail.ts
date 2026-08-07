@@ -1,16 +1,24 @@
-import type {
-  AttemptOutcome,
-  DeliveryStatus,
-  EndpointStatus,
-  EventDetailResponse,
-  EventOperationalStatus,
+import {
+  JsonValueSchema,
+  type AttemptOutcome,
+  type DeliveryStatus,
+  type EndpointStatus,
+  type EventDetailResponse,
+  type EventOperationalStatus,
 } from '@relay/contracts'
 import type { RelayDatabase } from './database.js'
+import {
+  buildSafeRequestHeaders,
+  explainDeliveryRetry,
+  parseSafeResponseHeaders,
+  sanitizePayloadForInspector,
+} from './inspector-evidence.js'
 
 interface EventRow {
   id: string
   event_type: string
   created_at: string
+  payload_json: string
   payload_bytes: number
   queued_count: number
   leased_count: number
@@ -50,6 +58,7 @@ interface AttemptRow {
   status_code: number | null
   latency_ms: number | null
   error_class: string | null
+  response_headers_json: string | null
   response_excerpt: string | null
 }
 
@@ -80,6 +89,7 @@ export async function loadOwnerEventDetail(
          events.id,
          events.event_type,
          events.created_at,
+         events.payload_json,
          events.payload_bytes,
          SUM(
            CASE WHEN deliveries.status = 'queued'
@@ -114,6 +124,7 @@ export async function loadOwnerEventDetail(
          events.id,
          events.event_type,
          events.created_at,
+         events.payload_json,
          events.payload_bytes
        LIMIT 1`,
     )
@@ -166,6 +177,7 @@ export async function loadOwnerEventDetail(
          delivery_attempts.status_code,
          delivery_attempts.latency_ms,
          delivery_attempts.error_class,
+         delivery_attempts.response_headers_json,
          delivery_attempts.response_excerpt
        FROM delivery_attempts
        INNER JOIN deliveries
@@ -197,11 +209,26 @@ export async function loadOwnerEventDetail(
       statusCode: attempt.status_code,
       latencyMs: attempt.latency_ms,
       errorClass: attempt.error_class,
+      requestHeaders: buildSafeRequestHeaders(attempt.webhook_id, attempt.request_started_at),
+      responseHeaders: parseSafeResponseHeaders(attempt.response_headers_json),
       responseExcerpt: attempt.response_excerpt,
     })
 
     attemptsByDelivery.set(attempt.delivery_id, attempts)
   }
+
+  const replaysBySource = new Map<string, string[]>()
+
+  for (const delivery of deliveryResult.results) {
+    if (!delivery.replay_of_delivery_id) continue
+
+    const replays = replaysBySource.get(delivery.replay_of_delivery_id) ?? []
+
+    replays.push(delivery.id)
+    replaysBySource.set(delivery.replay_of_delivery_id, replays)
+  }
+
+  const payload = JsonValueSchema.parse(JSON.parse(event.payload_json))
 
   return {
     event: {
@@ -220,24 +247,49 @@ export async function loadOwnerEventDetail(
         total: event.delivery_count,
       },
     },
-    deliveries: deliveryResult.results.map((delivery) => ({
-      id: delivery.id,
-      endpoint: {
-        id: delivery.endpoint_id,
-        name: delivery.endpoint_name,
-        url: delivery.endpoint_url,
-        status: delivery.endpoint_status,
-      },
-      status: delivery.status,
-      attemptCount: delivery.attempt_count,
-      nextAttemptAt: delivery.next_attempt_at,
-      replayOfDeliveryId: delivery.replay_of_delivery_id,
-      lastErrorClass: delivery.last_error_class,
-      createdAt: delivery.created_at,
-      updatedAt: delivery.updated_at,
-      deliveredAt: delivery.delivered_at,
-      exhaustedAt: delivery.exhausted_at,
-      attempts: attemptsByDelivery.get(delivery.id) ?? [],
-    })),
+
+    safePayload: sanitizePayloadForInspector(payload),
+
+    deliveries: deliveryResult.results.map((delivery) => {
+      const attempts = attemptsByDelivery.get(delivery.id) ?? []
+
+      const latestAttempt = attempts[attempts.length - 1] ?? null
+
+      return {
+        id: delivery.id,
+        endpoint: {
+          id: delivery.endpoint_id,
+          name: delivery.endpoint_name,
+          url: delivery.endpoint_url,
+          status: delivery.endpoint_status,
+        },
+        status: delivery.status,
+        attemptCount: delivery.attempt_count,
+        nextAttemptAt: delivery.next_attempt_at,
+        replayOfDeliveryId: delivery.replay_of_delivery_id,
+        replayedByDeliveryIds: replaysBySource.get(delivery.id) ?? [],
+        retryExplanation: explainDeliveryRetry({
+          status: delivery.status,
+          attemptCount: delivery.attempt_count,
+          nextAttemptAt: delivery.next_attempt_at,
+          replayOfDeliveryId: delivery.replay_of_delivery_id,
+          lastErrorClass: delivery.last_error_class,
+          latestAttempt: latestAttempt
+            ? {
+                outcome: latestAttempt.outcome,
+                statusCode: latestAttempt.statusCode,
+                completedAt: latestAttempt.completedAt,
+                errorClass: latestAttempt.errorClass,
+              }
+            : null,
+        }),
+        lastErrorClass: delivery.last_error_class,
+        createdAt: delivery.created_at,
+        updatedAt: delivery.updated_at,
+        deliveredAt: delivery.delivered_at,
+        exhaustedAt: delivery.exhausted_at,
+        attempts,
+      }
+    }),
   }
 }

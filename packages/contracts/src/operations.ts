@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { AttemptOutcomeSchema, DeliveryStatusSchema } from './delivery.js'
 import { AttemptIdSchema, DeliveryIdSchema, EndpointIdSchema, EventIdSchema } from './ids.js'
-import { EventTypeSchema } from './ingestion.js'
+import { EventTypeSchema, JsonValueSchema } from './ingestion.js'
 
 const TimestampSchema = z.string().min(1).max(64)
 const NullableTimestampSchema = TimestampSchema.nullable()
@@ -66,6 +66,8 @@ export const EventListResponseSchema = z.strictObject({
   metrics: EventStreamMetricsSchema,
 })
 
+const SafeHeadersSchema = z.record(z.string().min(1).max(120), z.string().max(500))
+
 export const DeliveryAttemptDetailSchema = z.strictObject({
   id: AttemptIdSchema,
   webhookId: z
@@ -81,6 +83,8 @@ export const DeliveryAttemptDetailSchema = z.strictObject({
   statusCode: z.number().int().min(100).max(599).nullable(),
   latencyMs: z.number().int().nonnegative().nullable(),
   errorClass: z.string().max(160).nullable(),
+  requestHeaders: SafeHeadersSchema,
+  responseHeaders: SafeHeadersSchema,
   responseExcerpt: z.string().nullable(),
 })
 
@@ -98,6 +102,8 @@ export const DeliveryDetailSchema = z.strictObject({
   attemptCount: z.number().int().nonnegative(),
   nextAttemptAt: TimestampSchema,
   replayOfDeliveryId: DeliveryIdSchema.nullable(),
+  replayedByDeliveryIds: z.array(DeliveryIdSchema),
+  retryExplanation: z.string().min(1).max(500),
   lastErrorClass: z.string().max(160).nullable(),
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
@@ -108,6 +114,7 @@ export const DeliveryDetailSchema = z.strictObject({
 
 export const EventDetailResponseSchema = z.strictObject({
   event: EventSummarySchema,
+  safePayload: JsonValueSchema,
   deliveries: z.array(DeliveryDetailSchema),
 })
 

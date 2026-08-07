@@ -88,7 +88,9 @@ test('renders production endpoint and system health state', async ({ page }) => 
     }),
   ).toBeVisible()
 
-  await expect(page.getByText('invoice.payment_failed')).toBeVisible()
+  await expect(
+    page.getByRole('listitem').filter({ hasText: /^invoice\.payment_failed$/ }),
+  ).toBeVisible()
 
   await page.goto('/console/health')
 
