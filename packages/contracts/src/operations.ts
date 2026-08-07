@@ -10,7 +10,11 @@ export const EndpointStatusSchema = z.enum(['pending', 'active', 'paused', 'disa
 
 export const EndpointHealthSchema = z.enum(['healthy', 'degraded', 'unknown'])
 
-export const EventOperationalStatusSchema = z.union([DeliveryStatusSchema, z.literal('mixed')])
+export const EventOperationalStatusSchema = z.union([
+  DeliveryStatusSchema,
+  z.literal('mixed'),
+  z.literal('no_deliveries'),
+])
 
 export const OperationsCursorSchema = z.string().min(1).max(512)
 
