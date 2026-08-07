@@ -201,7 +201,7 @@ describe('POST /v1/events', () => {
       deliveryCount: 2,
     })
     expect(body.eventId).toMatch(/^evt_[a-f0-9]{32}$/)
-    expect(database.batched).toHaveLength(7)
+    expect(database.batched).toHaveLength(8)
   })
 
   it('returns the original event for an idempotent retry', async () => {

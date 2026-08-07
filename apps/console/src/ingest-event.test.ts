@@ -158,7 +158,7 @@ describe('atomic event ingestion', () => {
       },
     })
 
-    expect(database.batched).toHaveLength(7)
+    expect(database.batched).toHaveLength(8)
 
     const queries = database.batched.map((statement) => statement.query.replace(/\s+/g, ' '))
 
@@ -166,6 +166,9 @@ describe('atomic event ingestion', () => {
     expect(queries.filter((query) => query.includes('INSERT INTO deliveries'))).toHaveLength(2)
     expect(queries.filter((query) => query.includes('INSERT INTO delivery_outbox'))).toHaveLength(2)
     expect(queries.filter((query) => query.includes('INSERT INTO daily_usage'))).toHaveLength(1)
+    expect(
+      queries.filter((query) => query.includes('INSERT INTO global_daily_usage')),
+    ).toHaveLength(1)
     expect(queries.filter((query) => query.includes('INSERT INTO audit_log'))).toHaveLength(1)
 
     const eventInsert = database.batched.find((statement) =>
@@ -253,7 +256,7 @@ describe('atomic event ingestion', () => {
       },
     })
 
-    expect(database.batched).toHaveLength(3)
+    expect(database.batched).toHaveLength(4)
     expect(
       database.batched.some((statement) => statement.query.includes('INSERT INTO deliveries')),
     ).toBe(false)
