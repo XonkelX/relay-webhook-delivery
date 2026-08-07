@@ -44,7 +44,11 @@ export function OverviewPage() {
   }, [])
 
   useEffect(() => {
-    void loadOverview()
+    const timeoutId = window.setTimeout(() => {
+      void loadOverview()
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
   }, [loadOverview])
 
   return (

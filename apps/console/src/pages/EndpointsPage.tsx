@@ -47,7 +47,11 @@ export function EndpointsPage() {
   }, [])
 
   useEffect(() => {
-    void loadEndpoints()
+    const timeoutId = window.setTimeout(() => {
+      void loadEndpoints()
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
   }, [loadEndpoints])
 
   return (

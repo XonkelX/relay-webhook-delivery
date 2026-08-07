@@ -37,7 +37,11 @@ export function OwnerConsoleGate({ activePage, children, onNavigate }: OwnerCons
   }, [])
 
   useEffect(() => {
-    void checkSession()
+    const timeoutId = window.setTimeout(() => {
+      void checkSession()
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
   }, [checkSession])
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {

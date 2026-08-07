@@ -43,7 +43,11 @@ export function DeliveryInspectorPage({ eventId, onBack }: DeliveryInspectorPage
   }, [eventId])
 
   useEffect(() => {
-    void loadDetail()
+    const timeoutId = window.setTimeout(() => {
+      void loadDetail()
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
   }, [loadDetail])
 
   async function handleReplay(delivery: DeliveryDetail) {

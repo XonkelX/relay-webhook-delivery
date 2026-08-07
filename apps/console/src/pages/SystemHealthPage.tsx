@@ -54,7 +54,11 @@ export function SystemHealthPage() {
   }, [])
 
   useEffect(() => {
-    void loadHealth()
+    const timeoutId = window.setTimeout(() => {
+      void loadHealth()
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
   }, [loadHealth])
 
   return (
