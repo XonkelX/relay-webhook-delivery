@@ -1,18 +1,29 @@
-import type { DeliveryStatus } from '../data/types'
+import type { EndpointSummary, EventSummary } from '@relay/contracts'
+
+type OperationalStatus =
+  EventSummary['status'] | EndpointSummary['status'] | EndpointSummary['health'] | 'replayed'
 
 interface StatusBadgeProps {
-  status: DeliveryStatus | 'healthy' | 'degraded' | 'disabled'
+  status: OperationalStatus
 }
 
-const labels: Record<StatusBadgeProps['status'], string> = {
+const labels: Record<OperationalStatus, string> = {
   queued: 'Queued',
-  delivered: 'Delivered',
+  leased: 'Leased',
   retrying: 'Retrying',
+  delivered: 'Delivered',
   exhausted: 'Exhausted',
-  replayed: 'Replayed',
+  cancelled: 'Cancelled',
+  mixed: 'Mixed',
+  no_deliveries: 'No deliveries',
+  pending: 'Pending',
+  active: 'Active',
+  paused: 'Paused',
+  disabled: 'Disabled',
   healthy: 'Healthy',
   degraded: 'Degraded',
-  disabled: 'Disabled',
+  unknown: 'Unknown',
+  replayed: 'Replayed',
 }
 
 export function StatusBadge({ status }: StatusBadgeProps) {

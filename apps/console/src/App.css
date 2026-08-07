@@ -1652,3 +1652,62 @@
   color: #69768d !important;
   font-size: 12px;
 }
+
+.status-badge--active {
+  border-color: rgba(74, 222, 128, 0.26);
+  background: rgba(74, 222, 128, 0.08);
+  color: #4ade80;
+}
+
+.status-badge--leased,
+.status-badge--pending {
+  border-color: rgba(96, 165, 250, 0.28);
+  background: rgba(96, 165, 250, 0.08);
+  color: #60a5fa;
+}
+
+.status-badge--cancelled {
+  border-color: rgba(248, 113, 113, 0.28);
+  background: rgba(248, 113, 113, 0.08);
+  color: #f87171;
+}
+
+.status-badge--mixed {
+  border-color: rgba(139, 124, 255, 0.3);
+  background: rgba(139, 124, 255, 0.09);
+  color: #a99eff;
+}
+
+.status-badge--paused,
+.status-badge--unknown,
+.status-badge--no_deliveries {
+  border-color: rgba(148, 163, 184, 0.24);
+  background: rgba(148, 163, 184, 0.07);
+  color: #94a3b8;
+}
+
+.operational-state {
+  display: grid;
+  gap: 12px;
+  padding: 24px;
+}
+
+.operational-state h2,
+.operational-state p {
+  margin: 0;
+}
+
+.operational-state p,
+.overview-empty {
+  color: #7f8ba3;
+  line-height: 1.6;
+}
+
+.operational-state .secondary-button {
+  width: max-content;
+}
+
+.overview-empty {
+  margin: 0;
+  padding: 28px 22px;
+}
