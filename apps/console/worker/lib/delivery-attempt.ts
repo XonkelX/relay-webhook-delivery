@@ -1,5 +1,6 @@
 import type { AttemptOutcome } from '@relay/contracts'
 import { canonicalizeJson } from './canonical-json.js'
+import { sanitizeResponseHeaders } from './response-headers.js'
 import type { RelayDatabase, RelayStatement } from './database.js'
 import type { RelayIdPrefix } from './ids.js'
 import { createPrefixedId } from './ids.js'
@@ -201,9 +202,7 @@ export async function completeDeliveryAttempt(
   const responseHeadersJson =
     input.responseHeaders === null || input.responseHeaders === undefined
       ? null
-      : canonicalizeJson({
-          ...input.responseHeaders,
-        })
+      : canonicalizeJson(sanitizeResponseHeaders(input.responseHeaders))
 
   const statements: RelayStatement[] = [
     database

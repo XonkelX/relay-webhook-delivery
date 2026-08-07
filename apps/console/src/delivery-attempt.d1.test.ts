@@ -124,11 +124,35 @@ describe('D1 delivery attempt lifecycle', () => {
         latencyMs: 1000,
         errorClass: 'http_503',
         responseHeaders: {
+          authorization: 'Bearer persisted-secret',
           'retry-after': '59',
+          'set-cookie': 'session=persisted-secret',
+          'x-api-key': 'persisted-api-secret',
+          'x-request-id': 'req_persisted',
+          'x-untrusted-header': 'must-not-be-persisted',
         },
         responseExcerpt: 'temporarily unavailable',
       }),
     ).resolves.toBe(true)
+
+    const persistedEvidence = await env.DB.prepare(
+      `SELECT response_headers_json
+         FROM delivery_attempts
+         WHERE delivery_id = ?
+           AND attempt_no = 1`,
+    )
+      .bind('dlv_attempt')
+      .first<{ response_headers_json: string | null }>()
+
+    expect(persistedEvidence?.response_headers_json).not.toBeNull()
+
+    expect(JSON.parse(persistedEvidence?.response_headers_json ?? '{}')).toEqual({
+      authorization: '[REDACTED]',
+      'retry-after': '59',
+      'set-cookie': '[REDACTED]',
+      'x-api-key': '[REDACTED]',
+      'x-request-id': 'req_persisted',
+    })
 
     const retrying = await env.DB.prepare(
       `SELECT

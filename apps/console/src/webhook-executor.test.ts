@@ -14,14 +14,19 @@ function clock(values: number[]): () => number {
 }
 
 describe('webhook executor', () => {
-  it('captures response evidence', async () => {
+  it('captures only safe response evidence and redacts sensitive headers', async () => {
     const fetcher = vi.fn(
       async () =>
         new Response('accepted', {
           status: 202,
           headers: {
+            authorization: 'Bearer receiver-secret',
+            'content-type': 'application/json',
             'retry-after': '30',
+            'set-cookie': 'session=receiver-secret',
+            'x-api-key': 'receiver-api-secret',
             'x-request-id': 'req_123',
+            'x-untrusted-header': 'must-not-be-persisted',
           },
         }),
     ) as typeof fetch
@@ -46,8 +51,18 @@ describe('webhook executor', () => {
       responseExcerpt: 'accepted',
       retryAfter: '30',
     })
-  })
 
+    if (result.kind === 'response') {
+      expect(result.responseHeaders).toEqual({
+        authorization: '[REDACTED]',
+        'content-type': 'application/json',
+        'retry-after': '30',
+        'set-cookie': '[REDACTED]',
+        'x-api-key': '[REDACTED]',
+        'x-request-id': 'req_123',
+      })
+    }
+  })
   it('bounds response excerpts', async () => {
     const result = await executeWebhook(
       {
