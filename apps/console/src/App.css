@@ -2200,3 +2200,117 @@
     gap: 7px;
   }
 }
+
+/* Phase 5 endpoint management */
+
+.endpoint-management {
+  display: grid;
+  gap: 16px;
+  margin-top: 22px;
+  padding-top: 20px;
+  border-top: 1px solid #202838;
+}
+
+.endpoint-management__header h3 {
+  margin: 0 0 5px;
+  color: #edf1fa;
+  font-size: 15px;
+}
+
+.endpoint-management__header p,
+.endpoint-management__note {
+  margin: 0;
+  color: #748199;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.endpoint-management__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.endpoint-management__actions button:disabled,
+.endpoint-management > button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  transform: none;
+}
+
+.endpoint-subscription-editor {
+  display: grid;
+  gap: 8px;
+}
+
+.endpoint-subscription-editor > span {
+  color: #748199;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.endpoint-subscription-editor textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 11px 12px;
+  resize: vertical;
+  border: 1px solid #30394a;
+  border-radius: 8px;
+  outline: none;
+  background: #090d14;
+  color: #dce3ef;
+  font:
+    12px/1.55 'SFMono-Regular',
+    Consolas,
+    monospace;
+}
+
+.endpoint-subscription-editor textarea:focus {
+  border-color: #7c6cff;
+  box-shadow: 0 0 0 3px rgba(124, 108, 255, 0.14);
+}
+
+.endpoint-secret-reveal {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 22px;
+  padding: 22px;
+  border-color: rgba(250, 204, 21, 0.32);
+}
+
+.endpoint-secret-reveal h2,
+.endpoint-secret-reveal p {
+  margin: 0;
+}
+
+.endpoint-secret-reveal p {
+  color: #929db1;
+  line-height: 1.6;
+}
+
+.endpoint-secret-reveal code {
+  display: block;
+  max-width: 100%;
+  padding: 12px;
+  overflow-x: auto;
+  border: 1px solid #30394a;
+  border-radius: 8px;
+  background: #090d14;
+  color: #facc15;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  .endpoint-management__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .endpoint-management__actions button,
+  .endpoint-management > button {
+    width: 100%;
+  }
+}

@@ -3,6 +3,10 @@ import {
   EventDetailResponseSchema,
   EventListResponseSchema,
   OverviewResponseSchema,
+  OwnerEndpointSecretRotationResponseSchema,
+  OwnerEndpointStatusUpdateResponseSchema,
+  OwnerEndpointSubscriptionsUpdateResponseSchema,
+  OwnerEndpointVerificationResponseSchema,
   OwnerSessionBootstrapResponseSchema,
   ReplayDeliveryAcceptedSchema,
   SystemHealthResponseSchema,
@@ -10,6 +14,11 @@ import {
   type EventDetailResponse,
   type EventListResponse,
   type OverviewResponse,
+  type OwnerEndpointSecretRotationResponse,
+  type OwnerEndpointStatusTarget,
+  type OwnerEndpointStatusUpdateResponse,
+  type OwnerEndpointSubscriptionsUpdateResponse,
+  type OwnerEndpointVerificationResponse,
   type OwnerSessionBootstrapResponse,
   type ReplayDeliveryAccepted,
   type SystemHealthResponse,
@@ -96,6 +105,13 @@ function csrfHeaders(): HeadersInit {
   }
 }
 
+function jsonCsrfHeaders(): HeadersInit {
+  return {
+    ...csrfHeaders(),
+    'Content-Type': 'application/json',
+  }
+}
+
 export async function createOwnerSession(token: string): Promise<OwnerSessionBootstrapResponse> {
   const body = await request('/api/owner/session', {
     method: 'POST',
@@ -144,6 +160,60 @@ export async function getEndpoints(): Promise<EndpointListResponse> {
   const body = await request('/api/owner/endpoints')
 
   return EndpointListResponseSchema.parse(body)
+}
+
+export async function setEndpointStatus(
+  endpointId: string,
+  status: OwnerEndpointStatusTarget,
+): Promise<OwnerEndpointStatusUpdateResponse> {
+  const body = await request(`/api/owner/endpoints/${encodeURIComponent(endpointId)}/status`, {
+    method: 'PATCH',
+    headers: jsonCsrfHeaders(),
+    body: JSON.stringify({ status }),
+  })
+
+  return OwnerEndpointStatusUpdateResponseSchema.parse(body)
+}
+
+export async function updateEndpointSubscriptions(
+  endpointId: string,
+  eventTypes: string[],
+): Promise<OwnerEndpointSubscriptionsUpdateResponse> {
+  const body = await request(
+    `/api/owner/endpoints/${encodeURIComponent(endpointId)}/subscriptions`,
+    {
+      method: 'PUT',
+      headers: jsonCsrfHeaders(),
+      body: JSON.stringify({ eventTypes }),
+    },
+  )
+
+  return OwnerEndpointSubscriptionsUpdateResponseSchema.parse(body)
+}
+
+export async function verifyOwnerEndpoint(
+  endpointId: string,
+): Promise<OwnerEndpointVerificationResponse> {
+  const body = await request(`/api/owner/endpoints/${encodeURIComponent(endpointId)}/verify`, {
+    method: 'POST',
+    headers: csrfHeaders(),
+  })
+
+  return OwnerEndpointVerificationResponseSchema.parse(body)
+}
+
+export async function rotateOwnerEndpointSecret(
+  endpointId: string,
+): Promise<OwnerEndpointSecretRotationResponse> {
+  const body = await request(
+    `/api/owner/endpoints/${encodeURIComponent(endpointId)}/rotate-secret`,
+    {
+      method: 'POST',
+      headers: csrfHeaders(),
+    },
+  )
+
+  return OwnerEndpointSecretRotationResponseSchema.parse(body)
 }
 
 export async function getSystemHealth(): Promise<SystemHealthResponse> {
