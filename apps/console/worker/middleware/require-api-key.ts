@@ -11,6 +11,7 @@ export interface RelayWorkerEnvironment {
     ENDPOINT_SECRET_MASTER_KEY_V1?: string
     ENDPOINT_SECRET_MASTER_KEY_V2?: string
     OWNER_SESSION_SIGNING_KEY?: string
+    OWNER_BOOTSTRAP_TOKEN?: string
   }
   Variables: {
     apiKey: AuthenticatedApiKey

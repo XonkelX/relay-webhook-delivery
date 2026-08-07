@@ -1,144 +1,279 @@
-import { StatusBadge } from '../components/StatusBadge'
+import type { SystemHealthResponse } from '@relay/contracts'
+import { useCallback, useEffect, useState } from 'react'
+import { formatLatency, formatNumber, formatTimestamp } from '../data/formatters'
+import { getSystemHealth } from '../lib/owner-api'
 
-const services = [
-  {
-    name: 'Relay Console',
-    description: 'React application and API Worker',
-    status: 'healthy' as const,
-    latency: '42 ms',
-    detail: 'Last check 12 seconds ago',
-  },
-  {
-    name: 'Delivery scheduler',
-    description: 'D1-backed claim and retry loop',
-    status: 'healthy' as const,
-    latency: '61 ms',
-    detail: '25-record claim ceiling',
-  },
-  {
-    name: 'Relay Lab',
-    description: 'Deterministic webhook receiver',
-    status: 'healthy' as const,
-    latency: '87 ms',
-    detail: 'Four scenarios available',
-  },
-  {
-    name: 'Billing Platform',
-    description: 'External destination health',
-    status: 'degraded' as const,
-    latency: '431 ms',
-    detail: 'Recent HTTP 503 responses',
-  },
-]
+function formatRate(value: number | null) {
+  return value === null ? '—' : `${value.toFixed(2)}%`
+}
+
+function formatOptionalTimestamp(value: string | null) {
+  return value === null ? 'None' : formatTimestamp(value)
+}
+
+function formatBytes(value: number) {
+  if (value >= 1024 * 1024) {
+    return `${(value / (1024 * 1024)).toFixed(1)} MiB`
+  }
+
+  if (value >= 1024) {
+    return `${(value / 1024).toFixed(0)} KiB`
+  }
+
+  return `${value} B`
+}
+
+function quotaPercent(health: SystemHealthResponse) {
+  const { globalAcceptedEventsToday, globalDailyEventLimit } = health.quotas
+
+  if (globalDailyEventLimit === 0) {
+    return 0
+  }
+
+  return Math.min(100, (globalAcceptedEventsToday / globalDailyEventLimit) * 100)
+}
 
 export function SystemHealthPage() {
+  const [health, setHealth] = useState<SystemHealthResponse | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const loadHealth = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      setHealth(await getSystemHealth())
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error ? loadError.message : 'System health could not be loaded.',
+      )
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void loadHealth()
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [loadHealth])
+
   return (
-    <section className="page">
+    <section className="page" aria-busy={loading}>
       <header className="page-header">
         <div>
           <p className="eyebrow">Reliability</p>
           <h1>System health</h1>
           <p className="page-header__description">
-            Review delivery infrastructure, scheduler activity, and current operational limits.
+            Review durable queue pressure, retry state, outbox backlog, ingestion quotas, and the
+            guardrails enforced by Relay.
           </p>
         </div>
 
-        <div className="health-summary">
-          <span className="health-summary__pulse" aria-hidden="true" />
-          All core systems operational
-        </div>
+        <button
+          className="secondary-button"
+          type="button"
+          disabled={loading}
+          onClick={() => void loadHealth()}
+        >
+          {loading ? 'Refreshing…' : 'Refresh'}
+        </button>
       </header>
 
-      <div className="health-metrics">
-        <article className="panel">
-          <span>Queued deliveries</span>
-          <strong>18</strong>
-          <small>Oldest queued for 2m 14s</small>
+      {loading && !health ? (
+        <article className="panel operational-state" aria-live="polite">
+          <h2>Loading health telemetry</h2>
+          <p>Reading current operational state from Relay.</p>
         </article>
+      ) : null}
 
-        <article className="panel">
-          <span>Scheduler claims</span>
-          <strong>36,000</strong>
-          <small>Daily ceiling: 50,000</small>
+      {error ? (
+        <article className="panel operational-state" role="alert">
+          <h2>Health telemetry unavailable</h2>
+          <p>{error}</p>
+
+          <button className="secondary-button" type="button" onClick={() => void loadHealth()}>
+            Retry
+          </button>
         </article>
+      ) : null}
 
-        <article className="panel">
-          <span>Success rate</span>
-          <strong>99.94%</strong>
-          <small>Across the last 24 hours</small>
-        </article>
+      {health ? (
+        <>
+          <div className="health-metrics">
+            <article className="panel">
+              <span>Queued deliveries</span>
+              <strong>{formatNumber(health.queuedDeliveries)}</strong>
+              <small>Oldest: {formatOptionalTimestamp(health.oldestQueuedAt)}</small>
+            </article>
 
-        <article className="panel">
-          <span>Median latency</span>
-          <strong>184 ms</strong>
-          <small>Outbound delivery attempts</small>
-        </article>
-      </div>
+            <article className="panel">
+              <span>Retrying deliveries</span>
+              <strong>{formatNumber(health.retryingDeliveries)}</strong>
+              <small>Oldest retry: {formatOptionalTimestamp(health.oldestRetryAt)}</small>
+            </article>
 
-      <div className="health-layout">
-        <article className="panel">
-          <div className="panel__header">
-            <div>
-              <h2>Service status</h2>
-              <p>Deterministic Phase 1 health fixtures</p>
-            </div>
+            <article className="panel">
+              <span>Success rate · 24h</span>
+              <strong>{formatRate(health.successRate24h)}</strong>
+              <small>Terminal delivery outcomes</small>
+            </article>
+
+            <article className="panel">
+              <span>Median latency · 24h</span>
+              <strong>
+                {health.medianLatencyMs24h === null
+                  ? '—'
+                  : formatLatency(health.medianLatencyMs24h)}
+              </strong>
+              <small>Completed delivery attempts</small>
+            </article>
           </div>
 
-          <div className="service-list">
-            {services.map((service) => (
-              <div className="service-row" key={service.name}>
+          <div className="health-layout">
+            <article className="panel">
+              <div className="panel__header">
                 <div>
-                  <strong>{service.name}</strong>
-                  <span>{service.description}</span>
-                </div>
-
-                <StatusBadge status={service.status} />
-
-                <div className="service-row__metric">
-                  <strong>{service.latency}</strong>
-                  <span>{service.detail}</span>
+                  <h2>Operational pressure</h2>
+                  <p>Current durable work waiting inside Relay</p>
                 </div>
               </div>
-            ))}
-          </div>
-        </article>
 
-        <article className="panel guardrail-panel">
-          <div className="panel__header">
-            <div>
-              <h2>Operational guardrails</h2>
-              <p>Committed project-owned ceilings</p>
-            </div>
+              <dl className="health-pressure-list">
+                <div>
+                  <dt>Queued deliveries</dt>
+                  <dd>
+                    <strong>{formatNumber(health.queuedDeliveries)}</strong>
+                    <span>Oldest created {formatOptionalTimestamp(health.oldestQueuedAt)}</span>
+                  </dd>
+                </div>
+
+                <div>
+                  <dt>Retrying deliveries</dt>
+                  <dd>
+                    <strong>{formatNumber(health.retryingDeliveries)}</strong>
+                    <span>Oldest retry due {formatOptionalTimestamp(health.oldestRetryAt)}</span>
+                  </dd>
+                </div>
+
+                <div>
+                  <dt>Due outbox records</dt>
+                  <dd>
+                    <strong>{formatNumber(health.pendingOutbox)}</strong>
+                    <span>
+                      Oldest available {formatOptionalTimestamp(health.oldestPendingOutboxAt)}
+                    </span>
+                  </dd>
+                </div>
+              </dl>
+            </article>
+
+            <article className="panel">
+              <div className="panel__header">
+                <div>
+                  <h2>Ingestion quota</h2>
+                  <p>Current UTC-day event budget</p>
+                </div>
+              </div>
+
+              <div className="quota-panel">
+                <div className="quota-panel__summary">
+                  <strong>{formatNumber(health.quotas.globalAcceptedEventsToday)}</strong>
+                  <span>
+                    of {formatNumber(health.quotas.globalDailyEventLimit)} global events accepted
+                    today
+                  </span>
+                </div>
+
+                <div
+                  className="quota-meter"
+                  role="progressbar"
+                  aria-label="Global daily event quota"
+                  aria-valuemin={0}
+                  aria-valuemax={health.quotas.globalDailyEventLimit}
+                  aria-valuenow={health.quotas.globalAcceptedEventsToday}
+                >
+                  <span style={{ width: `${quotaPercent(health)}%` }} />
+                </div>
+
+                <dl className="quota-facts">
+                  <div>
+                    <dt>Global daily limit</dt>
+                    <dd>{formatNumber(health.quotas.globalDailyEventLimit)}</dd>
+                  </div>
+                  <div>
+                    <dt>Per-key daily limit</dt>
+                    <dd>{formatNumber(health.quotas.perKeyDailyEventLimit)}</dd>
+                  </div>
+                  <div>
+                    <dt>Budget used</dt>
+                    <dd>{quotaPercent(health).toFixed(1)}%</dd>
+                  </div>
+                </dl>
+              </div>
+            </article>
           </div>
 
-          <dl className="guardrail-list">
-            <div>
-              <dt>Scheduler interval</dt>
-              <dd>1 minute</dd>
+          <article className="panel guardrail-panel health-guardrails">
+            <div className="panel__header">
+              <div>
+                <h2>Operational guardrails</h2>
+                <p>Runtime values sourced from the canonical project configuration</p>
+              </div>
             </div>
-            <div>
-              <dt>Claims per tick</dt>
-              <dd>25 maximum</dd>
-            </div>
-            <div>
-              <dt>Delivery attempts</dt>
-              <dd>8 maximum</dd>
-            </div>
-            <div>
-              <dt>Request timeout</dt>
-              <dd>10 seconds</dd>
-            </div>
-            <div>
-              <dt>Payload size</dt>
-              <dd>256 KiB</dd>
-            </div>
-            <div>
-              <dt>Retention</dt>
-              <dd>30 days</dd>
-            </div>
-          </dl>
-        </article>
-      </div>
+
+            <dl className="guardrail-list">
+              <div>
+                <dt>Scheduler interval</dt>
+                <dd>{health.guardrails.schedulerIntervalSeconds} seconds</dd>
+              </div>
+
+              <div>
+                <dt>Claims per tick</dt>
+                <dd>{formatNumber(health.guardrails.claimsPerTick)} maximum</dd>
+              </div>
+
+              <div>
+                <dt>Daily claims</dt>
+                <dd>{formatNumber(health.guardrails.maxDailyClaims)} maximum</dd>
+              </div>
+
+              <div>
+                <dt>Delivery attempts</dt>
+                <dd>{health.guardrails.maxDeliveryAttempts} maximum</dd>
+              </div>
+
+              <div>
+                <dt>Request timeout</dt>
+                <dd>{formatLatency(health.guardrails.requestTimeoutMs)}</dd>
+              </div>
+
+              <div>
+                <dt>Payload size</dt>
+                <dd>{formatBytes(health.guardrails.maxPayloadBytes)}</dd>
+              </div>
+
+              <div>
+                <dt>Response capture</dt>
+                <dd>{formatBytes(health.guardrails.maxResponseCaptureBytes)}</dd>
+              </div>
+
+              <div>
+                <dt>Event retention</dt>
+                <dd>{health.guardrails.eventRetentionDays} days</dd>
+              </div>
+
+              <div>
+                <dt>Attempt retention</dt>
+                <dd>{health.guardrails.attemptRetentionDays} days</dd>
+              </div>
+            </dl>
+          </article>
+        </>
+      ) : null}
     </section>
   )
 }

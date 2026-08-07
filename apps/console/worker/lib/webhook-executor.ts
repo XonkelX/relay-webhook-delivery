@@ -1,3 +1,5 @@
+import { sanitizeResponseHeaders } from './response-headers.js'
+
 const DEFAULT_TIMEOUT_MS = 10_000
 const MAX_TIMEOUT_MS = 60_000
 const MAX_RESPONSE_BYTES = 8_192
@@ -41,16 +43,6 @@ function validateTimeout(timeoutMs: number): void {
 
 function latency(startedAt: number, completedAt: number): number {
   return Math.max(0, Math.round(completedAt - startedAt))
-}
-
-function captureHeaders(headers: Headers): Record<string, string> {
-  const captured: Record<string, string> = {}
-
-  headers.forEach((value, name) => {
-    captured[name] = value.slice(0, 500)
-  })
-
-  return captured
 }
 
 async function readExcerpt(response: Response): Promise<string> {
@@ -119,7 +111,7 @@ export async function executeWebhook(
       kind: 'response',
       statusCode: response.status,
       latencyMs: latency(startedAt, nowMilliseconds()),
-      responseHeaders: captureHeaders(response.headers),
+      responseHeaders: sanitizeResponseHeaders(response.headers),
       responseExcerpt: await readExcerpt(response),
       retryAfter: response.headers.get('retry-after'),
     }

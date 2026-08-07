@@ -1,141 +1,367 @@
+import type { EventDetailResponse } from '@relay/contracts'
+import { useCallback, useEffect, useState } from 'react'
 import { StatusBadge } from '../components/StatusBadge'
-import type { EventFixture } from '../data/types'
 import { formatLatency, formatTimestamp } from '../data/formatters'
+import { getEvent, replayDelivery } from '../lib/owner-api'
+
+type DeliveryDetail = EventDetailResponse['deliveries'][number]
 
 interface DeliveryInspectorPageProps {
-  event: EventFixture
+  eventId: string
   onBack: () => void
 }
 
-export function DeliveryInspectorPage({ event, onBack }: DeliveryInspectorPageProps) {
+function isReplayable(delivery: DeliveryDetail) {
   return (
-    <section className="page">
+    (delivery.status === 'delivered' ||
+      delivery.status === 'exhausted' ||
+      delivery.status === 'cancelled') &&
+    delivery.endpoint.status === 'active'
+  )
+}
+
+function formatHeaders(headers: Record<string, string>) {
+  const entries = Object.entries(headers).sort(([left], [right]) => left.localeCompare(right))
+
+  if (entries.length === 0) {
+    return 'No headers captured.'
+  }
+
+  return entries.map(([name, value]) => `${name}: ${value}`).join('\n')
+}
+
+export function DeliveryInspectorPage({ eventId, onBack }: DeliveryInspectorPageProps) {
+  const [detail, setDetail] = useState<EventDetailResponse | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [replayingId, setReplayingId] = useState<string | null>(null)
+  const [replayMessage, setReplayMessage] = useState<string | null>(null)
+
+  const loadDetail = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      setDetail(await getEvent(eventId))
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error ? loadError.message : 'The event detail could not be loaded.',
+      )
+    } finally {
+      setLoading(false)
+    }
+  }, [eventId])
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void loadDetail()
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [loadDetail])
+
+  async function handleReplay(delivery: DeliveryDetail) {
+    if (replayingId || !isReplayable(delivery)) return
+
+    const confirmed = window.confirm(
+      `Replay delivery ${delivery.id}? A new linked delivery will be created. ` +
+        'The original delivery and attempt history will remain unchanged.',
+    )
+
+    if (!confirmed) return
+
+    setReplayingId(delivery.id)
+    setReplayMessage(null)
+
+    try {
+      const replay = await replayDelivery(delivery.id)
+      setReplayMessage(`Replay ${replay.deliveryId} was queued.`)
+      await loadDetail()
+    } catch (replayError) {
+      setReplayMessage(
+        replayError instanceof Error ? replayError.message : 'The delivery could not be replayed.',
+      )
+    } finally {
+      setReplayingId(null)
+    }
+  }
+
+  return (
+    <section className="page" aria-busy={loading}>
       <button className="back-button" type="button" onClick={onBack}>
         ← Back to event stream
       </button>
 
-      <header className="page-header inspector-header">
-        <div>
-          <p className="eyebrow">Delivery inspector</p>
-          <h1>{event.eventType}</h1>
-          <p className="page-header__description">
-            Inspect every delivery attempt and the current lifecycle state.
-          </p>
-        </div>
+      {loading && !detail ? (
+        <article className="panel operational-state" aria-live="polite">
+          <h2>Loading event</h2>
+          <p>Reading persisted delivery and attempt evidence.</p>
+        </article>
+      ) : null}
 
-        <div className="inspector-header__actions">
-          <StatusBadge status={event.status} />
-          <button className="primary-button" type="button">
-            Replay event
+      {error ? (
+        <article className="panel operational-state" role="alert">
+          <h2>Event unavailable</h2>
+          <p>{error}</p>
+          <button className="secondary-button" type="button" onClick={() => void loadDetail()}>
+            Retry
           </button>
-        </div>
-      </header>
+        </article>
+      ) : null}
 
-      <div className="inspector-grid">
-        <article className="panel detail-panel">
-          <div className="panel__header">
+      {detail ? (
+        <>
+          <header className="page-header inspector-header">
             <div>
-              <h2>Delivery details</h2>
-              <p>Canonical identifiers and destination metadata</p>
+              <p className="eyebrow">Delivery inspector</p>
+              <h1>{detail.event.eventType}</h1>
+              <p className="page-header__description">
+                Inspect every fanout delivery, attempt, endpoint, and replay relationship.
+              </p>
             </div>
-          </div>
 
-          <dl className="detail-list">
-            <div>
-              <dt>Event ID</dt>
-              <dd>
-                <code>{event.id}</code>
-              </dd>
-            </div>
-            <div>
-              <dt>Delivery ID</dt>
-              <dd>
-                <code>{event.deliveryId}</code>
-              </dd>
-            </div>
-            <div>
-              <dt>Webhook ID</dt>
-              <dd>
-                <code>{event.webhookId}</code>
-              </dd>
-            </div>
-            <div>
-              <dt>Endpoint</dt>
-              <dd>{event.endpointName}</dd>
-            </div>
-            <div>
-              <dt>Destination</dt>
-              <dd>
-                <code>{event.endpointUrl}</code>
-              </dd>
-            </div>
-            <div>
-              <dt>Created</dt>
-              <dd>{formatTimestamp(event.createdAt)}</dd>
-            </div>
-            {event.nextRetryAt && (
+            <StatusBadge status={detail.event.status} />
+          </header>
+
+          <article className="panel event-detail-summary">
+            <div className="panel__header">
               <div>
-                <dt>Next retry</dt>
-                <dd>{formatTimestamp(event.nextRetryAt)}</dd>
+                <h2>Event</h2>
+                <p>Durable event metadata and aggregate fanout state</p>
               </div>
-            )}
-            {event.replayOf && (
+            </div>
+
+            <dl className="detail-list">
               <div>
-                <dt>Replay of</dt>
+                <dt>Event ID</dt>
                 <dd>
-                  <code>{event.replayOf}</code>
+                  <code>{detail.event.id}</code>
                 </dd>
               </div>
+              <div>
+                <dt>Created</dt>
+                <dd>{formatTimestamp(detail.event.createdAt)}</dd>
+              </div>
+              <div>
+                <dt>Payload</dt>
+                <dd>{detail.event.payloadBytes} B</dd>
+              </div>
+              <div>
+                <dt>Deliveries</dt>
+                <dd>
+                  {detail.event.deliveries.delivered}/{detail.event.deliveries.total} delivered ·{' '}
+                  {detail.event.deliveries.retrying} retrying · {detail.event.deliveries.exhausted}{' '}
+                  exhausted
+                </dd>
+              </div>
+            </dl>
+          </article>
+
+          <details className="panel inspector-evidence">
+            <summary>
+              <span>Safe payload</span>
+              <small>Credential-shaped fields are redacted</small>
+            </summary>
+
+            <pre>{JSON.stringify(detail.safePayload, null, 2)}</pre>
+          </details>
+
+          {replayMessage ? (
+            <p className="inspector-message" aria-live="polite">
+              {replayMessage}
+            </p>
+          ) : null}
+
+          <div className="delivery-inspector-list">
+            {detail.deliveries.length === 0 ? (
+              <article className="panel operational-state">
+                <h2>No deliveries</h2>
+                <p>This event did not generate any endpoint deliveries.</p>
+              </article>
+            ) : (
+              detail.deliveries.map((delivery) => (
+                <article className="panel delivery-inspector" key={delivery.id}>
+                  <div className="delivery-inspector__header">
+                    <div>
+                      <p className="eyebrow">Delivery</p>
+                      <h2>{delivery.endpoint.name}</h2>
+                      <code>{delivery.id}</code>
+                    </div>
+
+                    <div className="inspector-header__actions">
+                      <StatusBadge status={delivery.status} />
+
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        disabled={replayingId !== null || !isReplayable(delivery)}
+                        onClick={() => void handleReplay(delivery)}
+                      >
+                        {replayingId === delivery.id ? 'Queuing…' : 'Replay delivery'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="inspector-grid">
+                    <section>
+                      <div className="panel__header">
+                        <div>
+                          <h2>Delivery details</h2>
+                          <p>Destination and lifecycle metadata</p>
+                        </div>
+                      </div>
+
+                      <dl className="detail-list">
+                        <div>
+                          <dt>Destination</dt>
+                          <dd>
+                            <code>{delivery.endpoint.url}</code>
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Endpoint</dt>
+                          <dd>
+                            <StatusBadge status={delivery.endpoint.status} />
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Attempts</dt>
+                          <dd>{delivery.attemptCount}</dd>
+                        </div>
+                        <div>
+                          <dt>Created</dt>
+                          <dd>{formatTimestamp(delivery.createdAt)}</dd>
+                        </div>
+
+                        {delivery.nextAttemptAt ? (
+                          <div>
+                            <dt>Next attempt</dt>
+                            <dd>{formatTimestamp(delivery.nextAttemptAt)}</dd>
+                          </div>
+                        ) : null}
+
+                        {delivery.replayOfDeliveryId ? (
+                          <div>
+                            <dt>Replay of</dt>
+                            <dd>
+                              <code>{delivery.replayOfDeliveryId}</code>
+                            </dd>
+                          </div>
+                        ) : null}
+
+                        {delivery.replayedByDeliveryIds.length > 0 ? (
+                          <div>
+                            <dt>Replayed by</dt>
+                            <dd className="replay-lineage">
+                              {delivery.replayedByDeliveryIds.map((replayId) => (
+                                <code key={replayId}>{replayId}</code>
+                              ))}
+                            </dd>
+                          </div>
+                        ) : null}
+
+                        {delivery.lastErrorClass ? (
+                          <div>
+                            <dt>Last error</dt>
+                            <dd>
+                              <code>{delivery.lastErrorClass}</code>
+                            </dd>
+                          </div>
+                        ) : null}
+                      </dl>
+
+                      <p className="retry-explanation">{delivery.retryExplanation}</p>
+                    </section>
+
+                    <section>
+                      <div className="panel__header">
+                        <div>
+                          <h2>Attempt timeline</h2>
+                          <p>{delivery.attempts.length} persisted attempt(s)</p>
+                        </div>
+                      </div>
+
+                      {delivery.attempts.length === 0 ? (
+                        <p className="overview-empty">No attempts have been recorded yet.</p>
+                      ) : (
+                        <ol className="attempt-list">
+                          {delivery.attempts.map((attempt) => {
+                            const occurredAt = attempt.completedAt ?? attempt.requestStartedAt
+
+                            return (
+                              <li key={attempt.id} className="attempt-item">
+                                <span
+                                  className={`attempt-marker attempt-marker--${
+                                    attempt.outcome ?? attempt.state
+                                  }`}
+                                  aria-hidden="true"
+                                />
+
+                                <div className="attempt-item__content">
+                                  <div className="attempt-item__header">
+                                    <strong>Attempt {attempt.number}</strong>
+                                    {occurredAt ? <time>{formatTimestamp(occurredAt)}</time> : null}
+                                  </div>
+
+                                  <div className="attempt-facts">
+                                    <span>
+                                      HTTP <strong>{attempt.statusCode ?? 'No response'}</strong>
+                                    </span>
+                                    <span>
+                                      Latency{' '}
+                                      <strong>
+                                        {attempt.latencyMs === null
+                                          ? '—'
+                                          : formatLatency(attempt.latencyMs)}
+                                      </strong>
+                                    </span>
+                                    <span>
+                                      Outcome{' '}
+                                      <strong>
+                                        {attempt.outcome?.replaceAll('_', ' ') ?? attempt.state}
+                                      </strong>
+                                    </span>
+                                  </div>
+
+                                  {attempt.webhookId ? (
+                                    <code className="attempt-evidence">
+                                      Webhook ID: {attempt.webhookId}
+                                    </code>
+                                  ) : null}
+
+                                  {attempt.errorClass ? (
+                                    <code className="attempt-error">{attempt.errorClass}</code>
+                                  ) : null}
+
+                                  <details className="attempt-headers">
+                                    <summary>Safe request headers</summary>
+                                    <pre>{formatHeaders(attempt.requestHeaders)}</pre>
+                                  </details>
+
+                                  <details className="attempt-headers">
+                                    <summary>Safe response headers</summary>
+                                    <pre>{formatHeaders(attempt.responseHeaders)}</pre>
+                                  </details>
+
+                                  {attempt.responseExcerpt ? (
+                                    <pre className="attempt-response">
+                                      {attempt.responseExcerpt}
+                                    </pre>
+                                  ) : null}
+                                </div>
+                              </li>
+                            )
+                          })}
+                        </ol>
+                      )}
+                    </section>
+                  </div>
+                </article>
+              ))
             )}
-          </dl>
-        </article>
-
-        <article className="panel attempt-panel">
-          <div className="panel__header">
-            <div>
-              <h2>Attempt timeline</h2>
-              <p>{event.attemptCount} recorded attempt(s)</p>
-            </div>
           </div>
-
-          <ol className="attempt-list">
-            {event.attempts.map((attempt) => (
-              <li key={attempt.id} className="attempt-item">
-                <span
-                  className={`attempt-marker attempt-marker--${attempt.outcome}`}
-                  aria-hidden="true"
-                />
-
-                <div className="attempt-item__content">
-                  <div className="attempt-item__header">
-                    <strong>Attempt {attempt.number}</strong>
-                    <time>{formatTimestamp(attempt.occurredAt)}</time>
-                  </div>
-
-                  <div className="attempt-facts">
-                    <span>
-                      HTTP{' '}
-                      <strong>
-                        {attempt.statusCode === null ? 'No response' : attempt.statusCode}
-                      </strong>
-                    </span>
-                    <span>
-                      Latency <strong>{formatLatency(attempt.latencyMs)}</strong>
-                    </span>
-                    <span>
-                      Outcome <strong>{attempt.outcome.replaceAll('_', ' ')}</strong>
-                    </span>
-                  </div>
-
-                  {attempt.errorClass && (
-                    <code className="attempt-error">{attempt.errorClass}</code>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ol>
-        </article>
-      </div>
+        </>
+      ) : null}
     </section>
   )
 }
