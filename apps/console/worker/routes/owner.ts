@@ -2,6 +2,7 @@ import { EventIdSchema } from '@relay/contracts'
 import { Hono } from 'hono'
 import { listOwnerEvents, parseOwnerEventListQuery } from '../lib/owner-events.js'
 import { loadOwnerEventDetail } from '../lib/owner-event-detail.js'
+import { listOwnerEndpoints } from '../lib/owner-endpoints.js'
 import { buildExpiredOwnerCookies } from '../lib/owner-session-http.js'
 import { revokeOwnerSession } from '../lib/owner-session.js'
 import { requireOwnerSession } from '../middleware/require-owner-session.js'
@@ -61,6 +62,11 @@ ownerRoute.get('/events/:eventId', async (context) => {
       404,
     )
   }
+
+  return context.json(result)
+})
+ownerRoute.get('/endpoints', async (context) => {
+  const result = await listOwnerEndpoints(context.env.DB)
 
   return context.json(result)
 })
