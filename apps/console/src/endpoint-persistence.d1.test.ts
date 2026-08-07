@@ -78,4 +78,33 @@ describe('D1 endpoint persistence', () => {
 
     expect(auditCount?.count).toBe(2)
   })
+
+  it('does not persist endpoints rejected by the URL policy', async () => {
+    const name = 'Blocked endpoint target'
+
+    await expect(
+      createEndpoint(
+        env.DB,
+        {
+          name,
+          url: 'http://127.0.0.1/webhook',
+          eventTypes: ['order.created'],
+        },
+        {
+          now: () => '2026-08-05T12:30:00.000Z',
+          createId: (prefix) => `${prefix}_blocked_d1`,
+        },
+      ),
+    ).rejects.toBeInstanceOf(TypeError)
+
+    const stored = await env.DB.prepare(
+      `SELECT COUNT(*) AS count
+         FROM endpoints
+         WHERE name = ?`,
+    )
+      .bind(name)
+      .first<{ count: number }>()
+
+    expect(stored?.count).toBe(0)
+  })
 })

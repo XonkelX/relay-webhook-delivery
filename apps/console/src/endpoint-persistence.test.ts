@@ -128,6 +128,11 @@ describe('endpoint persistence', () => {
     },
     {
       name: 'Endpoint',
+      url: 'http://example.test/webhook',
+      eventTypes: [],
+    },
+    {
+      name: 'Endpoint',
       url: 'https://user:secret@example.test',
       eventTypes: [],
     },

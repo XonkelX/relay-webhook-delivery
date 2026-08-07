@@ -1,4 +1,5 @@
 import { canonicalizeJson } from './canonical-json.js'
+import { normalizeEndpointUrl } from './endpoint-url-policy.js'
 import type { RelayDatabase, RelayStatement } from './database.js'
 import type { RelayIdPrefix } from './ids.js'
 import { createPrefixedId } from './ids.js'
@@ -33,26 +34,6 @@ function normalizeName(name: string): string {
   return normalized
 }
 
-function normalizeUrl(value: string): string {
-  let parsed: URL
-
-  try {
-    parsed = new URL(value.trim())
-  } catch {
-    throw new TypeError('Endpoint URL must be a valid HTTP or HTTPS URL.')
-  }
-
-  if (!['http:', 'https:'].includes(parsed.protocol)) {
-    throw new TypeError('Endpoint URL must be a valid HTTP or HTTPS URL.')
-  }
-
-  if (parsed.username || parsed.password) {
-    throw new TypeError('Endpoint URL must not contain credentials.')
-  }
-
-  return parsed.toString()
-}
-
 function normalizeEventTypes(eventTypes: readonly string[]): string[] {
   const normalized = new Set<string>()
 
@@ -75,7 +56,7 @@ export async function createEndpoint(
   dependencies: EndpointPersistenceDependencies = {},
 ): Promise<PersistedEndpoint> {
   const name = normalizeName(input.name)
-  const url = normalizeUrl(input.url)
+  const url = normalizeEndpointUrl(input.url)
   const eventTypes = normalizeEventTypes(input.eventTypes)
   const now = dependencies.now ?? (() => new Date().toISOString())
   const createId = dependencies.createId ?? createPrefixedId
