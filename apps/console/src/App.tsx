@@ -1,8 +1,6 @@
 import { Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams } from 'react-router'
 import type { ConsolePage } from './components/AppShell'
 import { OwnerConsoleGate } from './components/OwnerConsoleGate'
-import { eventFixtures } from './data/events'
-import type { EventFixture } from './data/types'
 import { DeliveryInspectorPage } from './pages/DeliveryInspectorPage'
 import { EndpointsPage } from './pages/EndpointsPage'
 import { EventStreamPage } from './pages/EventStreamPage'
@@ -43,27 +41,15 @@ function ConsoleLayout() {
   )
 }
 
-function EventStreamRoute() {
-  const navigate = useNavigate()
-
-  function inspectEvent(event: EventFixture) {
-    navigate(`/console/events/${event.id}`)
-  }
-
-  return <EventStreamPage onSelectEvent={inspectEvent} />
-}
-
 function DeliveryInspectorRoute() {
   const navigate = useNavigate()
   const { eventId } = useParams()
 
-  const event = eventFixtures.find((fixture) => fixture.id === eventId)
-
-  if (!event) {
+  if (!eventId) {
     return <Navigate to="/console/events" replace />
   }
 
-  return <DeliveryInspectorPage event={event} onBack={() => navigate('/console/events')} />
+  return <DeliveryInspectorPage eventId={eventId} onBack={() => navigate('/console/events')} />
 }
 
 function App() {
@@ -73,7 +59,7 @@ function App() {
 
       <Route path="/console" element={<ConsoleLayout />}>
         <Route index element={<OverviewPage />} />
-        <Route path="events" element={<EventStreamRoute />} />
+        <Route path="events" element={<EventStreamPage />} />
         <Route path="events/:eventId" element={<DeliveryInspectorRoute />} />
         <Route path="endpoints" element={<EndpointsPage />} />
         <Route path="failure-lab" element={<FailureLabPage />} />
