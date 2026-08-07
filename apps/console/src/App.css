@@ -2087,3 +2087,116 @@
     gap: 5px;
   }
 }
+
+.health-pressure-list {
+  margin: 0;
+}
+
+.health-pressure-list > div {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.7fr) minmax(0, 1fr);
+  gap: 20px;
+  padding: 18px 22px;
+  border-bottom: 1px solid #202838;
+}
+
+.health-pressure-list > div:last-child {
+  border-bottom: 0;
+}
+
+.health-pressure-list dt {
+  color: #77839a;
+  font-size: 12px;
+}
+
+.health-pressure-list dd {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+}
+
+.health-pressure-list dd strong {
+  color: #edf1fa;
+}
+
+.health-pressure-list dd span {
+  color: #748199;
+  font-size: 11px;
+}
+
+.quota-panel {
+  display: grid;
+  gap: 20px;
+  padding: 22px;
+}
+
+.quota-panel__summary {
+  display: grid;
+  gap: 5px;
+}
+
+.quota-panel__summary strong {
+  font-size: 30px;
+  letter-spacing: -0.04em;
+}
+
+.quota-panel__summary span {
+  color: #77839a;
+  font-size: 12px;
+}
+
+.quota-meter {
+  height: 9px;
+  overflow: hidden;
+  border: 1px solid #293246;
+  border-radius: 999px;
+  background: #090d14;
+}
+
+.quota-meter > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #6d5dfc;
+}
+
+.quota-facts {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.quota-facts div {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 11px 0;
+  border-bottom: 1px solid #202838;
+}
+
+.quota-facts div:last-child {
+  border-bottom: 0;
+}
+
+.quota-facts dt {
+  color: #77839a;
+  font-size: 12px;
+}
+
+.quota-facts dd {
+  margin: 0;
+  color: #d9dfeb;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.health-guardrails {
+  margin-top: 22px;
+}
+
+@media (max-width: 600px) {
+  .health-pressure-list > div {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+}
