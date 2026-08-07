@@ -126,3 +126,23 @@ export async function publishPendingOutbox(
 
   return publishRows(database, queue, pending.results, publishedAt)
 }
+export async function publishDeliveryOutbox(
+  database: RelayDatabase,
+  queue: DeliveryQueueProducer,
+  deliveryId: string,
+  publishedAt = new Date().toISOString(),
+): Promise<PublishOutboxResult> {
+  const pending = await database
+    .prepare(
+      `SELECT id, delivery_id, reason
+       FROM delivery_outbox
+       WHERE delivery_id = ?
+         AND published_at IS NULL
+         AND available_at <= ?
+       LIMIT 1`,
+    )
+    .bind(deliveryId, publishedAt)
+    .all<PendingOutboxRow>()
+
+  return publishRows(database, queue, pending.results, publishedAt)
+}
