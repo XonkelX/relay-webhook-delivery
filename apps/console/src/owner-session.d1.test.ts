@@ -70,7 +70,7 @@ describe('D1 owner sessions', () => {
 
   it('rejects invalid session TTL values', async () => {
     await expect(createOwnerSession(env.DB, 0)).rejects.toThrow(
-      'Session TTL must be an integer between 1 second and 30 days.',
+      'Session TTL must be an integer between 1 second and 8 hours.',
     )
   })
 })

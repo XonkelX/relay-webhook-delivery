@@ -3,6 +3,7 @@ import { requireApiKey, type RelayWorkerEnvironment } from './middleware/require
 import { publishPendingOutbox } from './lib/outbox-publisher.js'
 import { handleDeliveryQueue } from './queue-handler.js'
 import { eventsRoute } from './routes/events.js'
+import { ownerRoute } from './routes/owner.js'
 
 const app = new Hono<RelayWorkerEnvironment>()
 
@@ -15,6 +16,7 @@ app.get('/api/health', (context) =>
 
 app.use('/v1/*', requireApiKey)
 app.route('/v1/events', eventsRoute)
+app.route('/api/owner', ownerRoute)
 
 app.notFound((context) =>
   context.json(
