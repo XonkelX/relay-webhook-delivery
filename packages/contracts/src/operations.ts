@@ -68,6 +68,11 @@ export const EventListResponseSchema = z.strictObject({
 
 export const DeliveryAttemptDetailSchema = z.strictObject({
   id: AttemptIdSchema,
+  webhookId: z
+    .string()
+    .max(80)
+    .regex(/^msg_[A-Za-z0-9]+$/)
+    .nullable(),
   number: z.number().int().positive(),
   state: z.enum(['started', 'completed']),
   outcome: AttemptOutcomeSchema.nullable(),

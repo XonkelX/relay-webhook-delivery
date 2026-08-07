@@ -1,5 +1,7 @@
+import { EventIdSchema } from '@relay/contracts'
 import { Hono } from 'hono'
 import { listOwnerEvents, parseOwnerEventListQuery } from '../lib/owner-events.js'
+import { loadOwnerEventDetail } from '../lib/owner-event-detail.js'
 import { buildExpiredOwnerCookies } from '../lib/owner-session-http.js'
 import { revokeOwnerSession } from '../lib/owner-session.js'
 import { requireOwnerSession } from '../middleware/require-owner-session.js'
@@ -31,6 +33,37 @@ ownerRoute.get('/events', async (context) => {
   return context.json(result)
 })
 
+ownerRoute.get('/events/:eventId', async (context) => {
+  const eventId = context.req.param('eventId')
+
+  if (!EventIdSchema.safeParse(eventId).success) {
+    return context.json(
+      {
+        error: {
+          code: 'INVALID_EVENT_ID',
+          message: 'The event identifier is invalid.',
+        },
+      },
+      400,
+    )
+  }
+
+  const result = await loadOwnerEventDetail(context.env.DB, eventId)
+
+  if (!result) {
+    return context.json(
+      {
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Event not found.',
+        },
+      },
+      404,
+    )
+  }
+
+  return context.json(result)
+})
 ownerRoute.post('/logout', async (context) => {
   const rawToken = context.get('ownerSessionRawToken')
 
