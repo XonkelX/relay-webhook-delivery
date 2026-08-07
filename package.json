@@ -20,7 +20,8 @@
     "format-check": "prettier . --check",
     "test:e2e": "playwright test",
     "check:cost": "node scripts/check-cost-guardrails.mjs",
-    "db:migrate:local": "cd apps/console && wrangler d1 migrations apply relay-local --local"
+    "db:migrate:local": "cd apps/console && wrangler d1 migrations apply relay-local --local",
+    "db:seed:e2e": "cd apps/console && wrangler d1 execute relay-local --local --file=../../tests/e2e/seed.sql"
   },
   "license": "MIT",
   "devDependencies": {

@@ -1,10 +1,13 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+
+const ownerBootstrapToken =
+  process.env.RELAY_E2E_BOOTSTRAP_TOKEN ?? 'relay-e2e-bootstrap-token-0123456789abcdef'
 
 const routes = [
   '/',
   '/console',
   '/console/events',
-  '/console/events/evt_01J4M91QX3F7D8A2S6N5K0V4BC',
+  '/console/events/evt_e2econsole01',
   '/console/endpoints',
   '/console/failure-lab',
   '/console/health',
@@ -17,12 +20,29 @@ const viewports = [
   { name: 'wide', width: 1920, height: 1080 },
 ]
 
+async function authenticateOwner(page: Page) {
+  await page.goto('/console')
+
+  await expect(page.getByRole('heading', { name: 'Authenticate' })).toBeVisible()
+
+  await page.getByLabel('Owner bootstrap token').fill(ownerBootstrapToken)
+  await page.getByRole('button', { name: 'Open console' }).click()
+
+  await expect(
+    page.getByRole('heading', {
+      name: 'Delivery control plane',
+    }),
+  ).toBeVisible()
+}
+
 for (const viewport of viewports) {
   test(`routes avoid page overflow at ${viewport.width}px`, async ({ page }) => {
     await page.setViewportSize({
       width: viewport.width,
       height: viewport.height,
     })
+
+    await authenticateOwner(page)
 
     for (const route of routes) {
       await page.goto(route)
