@@ -1,4 +1,9 @@
 import { canonicalizeJson } from './canonical-json.js'
+import {
+  createEndpointSigningSecret,
+  encryptEndpointSecret,
+  type EndpointSecretKeyring,
+} from './endpoint-secret-crypto.js'
 import { normalizeEndpointUrl } from './endpoint-url-policy.js'
 import type { RelayDatabase, RelayStatement } from './database.js'
 import type { RelayIdPrefix } from './ids.js'
@@ -15,6 +20,7 @@ export interface PersistedEndpoint {
   name: string
   url: string
   status: 'pending'
+  signingSecret: string
   eventTypes: string[]
   createdAt: string
 }
@@ -22,6 +28,12 @@ export interface PersistedEndpoint {
 export interface EndpointPersistenceDependencies {
   now?: () => string
   createId?: (prefix: RelayIdPrefix) => string
+}
+
+export interface CreateEndpointDependencies extends EndpointPersistenceDependencies {
+  endpointSecretKeyVersion: string
+  endpointSecretKeyring: EndpointSecretKeyring
+  createSigningSecret?: () => string
 }
 
 function normalizeName(name: string): string {
@@ -53,7 +65,7 @@ function normalizeEventTypes(eventTypes: readonly string[]): string[] {
 export async function createEndpoint(
   database: RelayDatabase,
   input: CreateEndpointInput,
-  dependencies: EndpointPersistenceDependencies = {},
+  dependencies: CreateEndpointDependencies,
 ): Promise<PersistedEndpoint> {
   const name = normalizeName(input.name)
   const url = normalizeEndpointUrl(input.url)
@@ -62,6 +74,14 @@ export async function createEndpoint(
   const createId = dependencies.createId ?? createPrefixedId
   const createdAt = now()
   const endpointId = createId('ep')
+  const createSigningSecret = dependencies.createSigningSecret ?? createEndpointSigningSecret
+  const signingSecret = createSigningSecret()
+  const encryptedSigningSecret = await encryptEndpointSecret(
+    signingSecret,
+    endpointId,
+    dependencies.endpointSecretKeyVersion,
+    dependencies.endpointSecretKeyring,
+  )
   const statements: RelayStatement[] = []
 
   statements.push(
@@ -78,6 +98,30 @@ export async function createEndpoint(
          VALUES (?, ?, ?, 'pending', ?, ?)`,
       )
       .bind(endpointId, name, url, createdAt, createdAt),
+  )
+
+  statements.push(
+    database
+      .prepare(
+        `INSERT INTO endpoint_signing_secrets (
+           endpoint_id,
+           generation,
+           state,
+           key_version,
+           iv_base64,
+           ciphertext_base64,
+           valid_until,
+           created_at
+         )
+         VALUES (?, 1, 'active', ?, ?, ?, NULL, ?)`,
+      )
+      .bind(
+        endpointId,
+        encryptedSigningSecret.keyVersion,
+        encryptedSigningSecret.ivBase64,
+        encryptedSigningSecret.ciphertextBase64,
+        createdAt,
+      ),
   )
 
   for (const eventType of eventTypes) {
@@ -119,6 +163,7 @@ export async function createEndpoint(
     name,
     url,
     status: 'pending',
+    signingSecret,
     eventTypes,
     createdAt,
   }
@@ -160,7 +205,6 @@ export async function replaceEndpointSubscriptions(
       )
       .bind(endpointId),
   ]
-
   for (const eventType of eventTypes) {
     statements.push(
       database
@@ -206,5 +250,144 @@ export async function replaceEndpointSubscriptions(
   return {
     updated: true,
     eventTypes,
+  }
+}
+
+export type UpdateEndpointUrlResult =
+  | {
+      updated: true
+      url: string
+      status: 'pending'
+    }
+  | {
+      updated: false
+      reason: 'missing' | 'unchanged'
+      url: string
+    }
+
+export async function updateEndpointUrl(
+  database: RelayDatabase,
+  endpointId: string,
+  urlInput: string,
+  dependencies: EndpointPersistenceDependencies = {},
+): Promise<UpdateEndpointUrlResult> {
+  const url = normalizeEndpointUrl(urlInput)
+
+  const endpoint = await database
+    .prepare(
+      `SELECT url
+       FROM endpoints
+       WHERE id = ?
+       LIMIT 1`,
+    )
+    .bind(endpointId)
+    .first<{ url: string }>()
+
+  if (!endpoint) {
+    return {
+      updated: false,
+      reason: 'missing',
+      url,
+    }
+  }
+
+  if (endpoint.url === url) {
+    return {
+      updated: false,
+      reason: 'unchanged',
+      url,
+    }
+  }
+
+  const now = dependencies.now ?? (() => new Date().toISOString())
+  const createId = dependencies.createId ?? createPrefixedId
+  const updatedAt = now()
+
+  await database.batch([
+    database
+      .prepare(
+        `UPDATE endpoints
+         SET url = ?,
+             status = 'pending',
+             verified_at = NULL,
+             disabled_at = NULL,
+             verification_challenge_hash = NULL,
+             verification_expires_at = NULL,
+             verification_attempted_at = NULL,
+             updated_at = ?
+         WHERE id = ?`,
+      )
+      .bind(url, updatedAt, endpointId),
+
+    database
+      .prepare(
+        `DELETE FROM delivery_outbox
+         WHERE published_at IS NULL
+           AND delivery_id IN (
+             SELECT id
+             FROM deliveries
+             WHERE endpoint_id = ?
+               AND status IN (
+                 'queued',
+                 'retrying',
+                 'leased'
+               )
+           )`,
+      )
+      .bind(endpointId),
+
+    database
+      .prepare(
+        `UPDATE deliveries
+         SET status = 'cancelled',
+             lease_token = NULL,
+             lease_expires_at = NULL,
+             last_error_class = 'endpoint_url_changed',
+             updated_at = ?
+         WHERE endpoint_id = ?
+           AND status IN (
+             'queued',
+             'retrying',
+             'leased'
+           )`,
+      )
+      .bind(updatedAt, endpointId),
+
+    database
+      .prepare(
+        `INSERT INTO audit_log (
+           id,
+           actor_type,
+           action,
+           target_type,
+           target_id,
+           metadata_json,
+           created_at
+         )
+         VALUES (
+           ?,
+           'owner',
+           'endpoint.url.updated',
+           'endpoint',
+           ?,
+           ?,
+           ?
+         )`,
+      )
+      .bind(
+        createId('aud'),
+        endpointId,
+        canonicalizeJson({
+          previousUrl: endpoint.url,
+          url,
+        }),
+        updatedAt,
+      ),
+  ])
+
+  return {
+    updated: true,
+    url,
+    status: 'pending',
   }
 }
