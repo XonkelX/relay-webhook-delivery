@@ -2,6 +2,7 @@ import type { AttemptOutcome, DeliveryQueueMessage } from '@relay/contracts'
 import { completeDeliveryAttempt, startDeliveryAttempt } from './delivery-attempt.js'
 import { claimDelivery, type ClaimDeliveryResult } from './delivery-claim.js'
 import { loadDeliveryContext } from './delivery-context.js'
+import { cancelClaimedDeliveryIfEndpointInactive } from './delivery-endpoint-gate.js'
 import { calculateBackoffDelay, decideHttpRetry } from './delivery-policy.js'
 import type { RelayDatabase } from './database.js'
 import type { RelayIdPrefix } from './ids.js'
@@ -26,7 +27,7 @@ export interface DeliveryProcessorDependencies {
 export type ProcessDeliveryResult =
   | {
       action: 'ack'
-      reason: 'completed' | 'missing' | 'terminal'
+      reason: 'completed' | 'missing' | 'terminal' | 'cancelled'
       outcome?: AttemptOutcome
     }
   | {
@@ -77,6 +78,20 @@ export async function processDeliveryMessage(
 
   if (!claim.ok) {
     return handleClaimFailure(claim)
+  }
+
+  const cancelledForInactiveEndpoint = await cancelClaimedDeliveryIfEndpointInactive(
+    database,
+    claim.value.id,
+    claim.value.leaseToken,
+    claimedAt,
+  )
+
+  if (cancelledForInactiveEndpoint) {
+    return {
+      action: 'ack',
+      reason: 'cancelled',
+    }
   }
 
   const context = await loadDeliveryContext(database, claim.value.id)
