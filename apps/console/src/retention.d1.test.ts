@@ -1,5 +1,6 @@
 import { env } from 'cloudflare:workers'
 import { describe, expect, it } from 'vitest'
+import { replayDelivery } from '../worker/lib/replay-delivery.js'
 import { runRetentionSweep } from '../worker/lib/retention.js'
 
 const now = '2026-08-07T12:00:00.000Z'
@@ -255,6 +256,129 @@ describe('D1 retention sweep', () => {
     ).first<{ id: string }>()
 
     expect(outbox).toBeNull()
+
+    const foreignKeys = await env.DB.prepare('PRAGMA foreign_key_check').all()
+
+    expect(foreignKeys.results).toEqual([])
+  })
+  it('preserves an expired event when a replay is queued after candidate selection', async () => {
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO api_keys (
+           id, name, key_prefix, secret_hash,
+           status, created_at
+         )
+         VALUES (?, ?, ?, ?, 'active', ?)`,
+      ).bind('key_retention_race', 'Retention race', 'rly_ret_race', 'e'.repeat(64), old),
+
+      env.DB.prepare(
+        `INSERT INTO endpoints (
+           id, name, url, status,
+           created_at, updated_at, verified_at
+         )
+         VALUES (?, ?, ?, 'active', ?, ?, ?)`,
+      ).bind(
+        'ep_retention_race',
+        'Retention race endpoint',
+        'https://example.test/retention-race',
+        old,
+        old,
+        old,
+      ),
+
+      env.DB.prepare(
+        `INSERT INTO events (
+           id, api_key_id, idempotency_key,
+           event_type, payload_json,
+           payload_sha256, payload_bytes,
+           created_at
+         )
+         VALUES (?, ?, ?, ?, '{}', ?, 2, ?)`,
+      ).bind(
+        'evt_retention_race',
+        'key_retention_race',
+        'retention-race',
+        'retention.race',
+        'f'.repeat(64),
+        old,
+      ),
+
+      env.DB.prepare(
+        `INSERT INTO deliveries (
+           id, event_id, endpoint_id,
+           status, attempt_count,
+           next_attempt_at,
+           created_at, updated_at,
+           delivered_at
+         )
+         VALUES (?, ?, ?, 'delivered', 1, ?, ?, ?, ?)`,
+      ).bind(
+        'dlv_retention_race_source',
+        'evt_retention_race',
+        'ep_retention_race',
+        old,
+        old,
+        old,
+        old,
+      ),
+    ])
+
+    const result = await runRetentionSweep(env.DB, now, {
+      afterCandidateSelection: async (eventIds) => {
+        expect(eventIds).toContain('evt_retention_race')
+
+        const replayIds: Record<string, string> = {
+          dlv: 'dlv_retention_race_replay',
+          out: 'out_retention_race_replay',
+          aud: 'aud_retention_race_replay',
+        }
+
+        const replay = await replayDelivery(env.DB, 'dlv_retention_race_source', {
+          now: () => '2026-08-07T12:00:01.000Z',
+          createId: (prefix) => replayIds[prefix]!,
+        })
+
+        expect(replay.ok).toBe(true)
+      },
+    })
+
+    expect(result).toEqual({
+      eventsDeleted: 0,
+    })
+
+    const event = await env.DB.prepare(
+      `SELECT id
+         FROM events
+         WHERE id = 'evt_retention_race'`,
+    ).first<{ id: string }>()
+
+    expect(event?.id).toBe('evt_retention_race')
+
+    const deliveries = await env.DB.prepare(
+      `SELECT id, status
+         FROM deliveries
+         WHERE event_id = 'evt_retention_race'
+         ORDER BY id`,
+    ).all<{ id: string; status: string }>()
+
+    expect(deliveries.results).toEqual([
+      {
+        id: 'dlv_retention_race_replay',
+        status: 'queued',
+      },
+      {
+        id: 'dlv_retention_race_source',
+        status: 'delivered',
+      },
+    ])
+
+    const outbox = await env.DB.prepare(
+      `SELECT id
+         FROM delivery_outbox
+         WHERE id = 'out_retention_race_replay'`,
+    ).first<{ id: string }>()
+
+    expect(outbox?.id).toBe('out_retention_race_replay')
 
     const foreignKeys = await env.DB.prepare('PRAGMA foreign_key_check').all()
 
